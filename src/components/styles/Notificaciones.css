@@ -1,0 +1,19 @@
+.notificaciones-container {
+  position: relative;
+}
+
+.p-overlaypanel-notificaciones {
+  width: 350px;
+}
+
+.notificacion-nueva {
+  background-color: #fdf3f2;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.notificacion-leida {
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 6px;
+}

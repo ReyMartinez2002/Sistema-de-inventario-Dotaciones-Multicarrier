@@ -1,0 +1,51 @@
+.input-buscar {
+    padding-left: 30px;
+}
+
+.p-input-icon-left>i, .p-input-icon-right>i, .p-input-icon-left>svg, .p-input-icon-right>svg, .p-input-icon-left>.p-input-prefix, .p-input-icon-right>.p-input-suffix {
+    position: absolute;
+    top: 50%;
+    margin-top: -0.5rem;
+    margin-left: 8px;
+}
+
+.container-registrar-dotacion {
+    margin-top: 3.5rem;
+}
+
+@media (max-width: 576px) {
+    .p-input-icon-left>i, .p-input-icon-right>i, .p-input-icon-left>svg, .p-input-icon-right>svg, .p-input-icon-left>.p-input-prefix, .p-input-icon-right>.p-input-suffix {
+        margin-top: -0.4rem;
+    }
+
+    .Titulo-gestion-dotaciones {
+        font-size: 0.8rem;
+    }
+
+    .p-button-label {
+        display: none;
+    }
+
+    .btn-registrar-nueva-dotacion {
+        position: absolute;
+        height: 40px;
+        width: 40px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        right: 2rem;
+        top: 8.3rem;
+        background-color: #39cf18;
+        border: none;
+    }
+    .icon-pi-plus{
+        margin-left: 9px;
+    }
+    .modal-form {
+        width: 97% !important;
+        position: absolute;
+        top: 10px !important;
+    }
+    
+
+}

@@ -1,0 +1,26 @@
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem; 
+  transition: margin-left 0.3s ease;
+  min-height: 100vh;
+}
+
+/* Para cuando el sidebar está colapsado */
+.sidebar-collapsed .main-content {
+  margin-left: 80px;
+}
+
+/* Responsividad para móviles */
+@media (max-width: 991px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+}
