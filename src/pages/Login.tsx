@@ -8,7 +8,7 @@ import "./styles/Login.css";
 import icono from '../assets/Icono-casco.png';
 
 interface LoginProps {
-  onLogin: (user: string) => void;
+  onLogin: (user: any) => void; // Cambia el tipo si tienes uno definido
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -16,23 +16,50 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
   const [remember, setRemember] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (user === "admin" && pass === "admin123") {
-      onLogin(user);
-    } else {
-      setError("Usuario o contraseña incorrectos.");
+    setLoading(true);
+const API_URL = import.meta.env.VITE_API_URL;
+    try {
+      // Consumir el backend real
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username: user, // Cambia a "correo" si tu backend lo requiere
+          password: pass
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Guarda el token
+        if (remember) {
+          localStorage.setItem("token", data.token);
+        } else {
+          sessionStorage.setItem("token", data.token);
+        }
+        onLogin(data.usuario); // Pasa el usuario autenticado al padre
+      } else {
+        setError(data.error || "Usuario o contraseña incorrectos.");
+      }
+    } catch (err) {
+      setError("Error al conectar con el servidor.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-root">
       <div className="login-container">
-        {/* Esquina negra decorativa fuera del área recortada */}
         <div className="decorative-corner" />
-        {/* Left Section con recorte diagonal */}
         <div className="login-left">
           <div className="login-left-content">
             <img 
@@ -46,18 +73,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </p>
           </div>
         </div>
-        {/* Right Section */}
         <div className="login-right">
           <form onSubmit={handleSubmit} className="login-form">
             <div className="login-profile-img">
-              <img
-                src={icono}
-                alt="profile"
-              />
+              <img src={icono} alt="profile" />
             </div>
             <h3 className="login-title">Login</h3>
 
-            {/* Email */}
             <div className="login-field flex-align-icon">
               <span className="login-icon">
                 <i className="pi pi-envelope" />
@@ -65,13 +87,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <InputText
                 id="user"
                 className="w-full"
-                placeholder="Correo electrónico"
+                placeholder="Correo electrónico o usuario"
                 value={user}
                 onChange={e => setUser(e.target.value)}
                 autoFocus
               />
             </div>
-            {/* Password */}
             <div className="login-field flex-align-icon">
               <span className="login-icon">
                 <i className="pi pi-lock" />
@@ -98,9 +119,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
             {error && <Message severity="error" text={error} className="mb-3" />}
             <Button
-              label="Iniciar sesión"
+              label={loading ? "Ingresando..." : "Iniciar sesión"}
               type="submit"
               className="login-btn"
+              disabled={loading}
             />
             <div className="login-divider">
               <span>O continuar con</span>
