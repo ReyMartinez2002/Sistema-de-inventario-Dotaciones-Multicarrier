@@ -7,8 +7,18 @@ import { Message } from "primereact/message";
 import "./styles/Login.css";
 import icono from '../assets/Icono-casco.png';
 
+interface User {
+  id: string;
+  username: string;
+  email?: string;
+  name?: string;
+  // Agrega aquí otras propiedades necesarias según tu API
+  role?: string;
+  token?: string;
+}
+
 interface LoginProps {
-  onLogin: (user: any) => void; // Cambia el tipo si tienes uno definido
+  onLogin: (user: User) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -22,16 +32,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = import.meta.env.VITE_API_URL;
+
     try {
-      // Consumir el backend real
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          username: user, // Cambia a "correo" si tu backend lo requiere
+          username: user,
           password: pass
         })
       });
@@ -39,18 +49,17 @@ const API_URL = import.meta.env.VITE_API_URL;
       const data = await response.json();
 
       if (response.ok) {
-        // Guarda el token
         if (remember) {
           localStorage.setItem("token", data.token);
         } else {
           sessionStorage.setItem("token", data.token);
         }
-        onLogin(data.usuario); // Pasa el usuario autenticado al padre
+        onLogin(data.usuario);
       } else {
         setError(data.error || "Usuario o contraseña incorrectos.");
       }
     } catch (err) {
-      setError("Error al conectar con el servidor.");
+      setError("Error al conectar con el servidor. Por favor intenta nuevamente."+ err);
     } finally {
       setLoading(false);
     }
