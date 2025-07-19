@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import Login from "./Login";
+import React from "react";
+import { useAuth } from "../contex/useAuth";
 import SidebarAdmin from "../components/Sidebar";
 import DashboardDotaciones from "../components/DashboardDotaciones";
 import RegistrarDotacionNueva from "../components/RegistrarDotacionNueva";
@@ -13,34 +13,31 @@ import ReporteDotaciones from "../components/ReporteDotaciones";
 import Perfil from "../components/Perfil";
 import Ajustes from "../components/Ajustes";
 import Notificaciones from "../components/Notificaciones";
+import { Navigate } from "react-router-dom";
 
 const HomeAdmin: React.FC = () => {
-  const [logged, setLogged] = useState(false);
-  const [user, setUser] = useState<string | null>(null);
-  const [selectedMenu, setSelectedMenu] = useState<string>("dashboard");
+  const { isAuthenticated, loading } = useAuth();
+  const [selectedMenu, setSelectedMenu] = React.useState<string>("dashboard");
 
-  if (!logged) {
-    return (
-      <Login
-        onLogin={(user) => {
-          setLogged(true);
-          setUser(user);
-        }}
-      />
-    );
+
+  if (loading) {
+    return <div className="loading-screen">Cargando...</div>;
   }
 
-  // Renderiza el contenido principal según la opción seleccionada del sidebar
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   const renderMainContent = () => {
     switch (selectedMenu) {
       case "dashboard":
         return <DashboardDotaciones />;
       case "registrar-nueva":
-         return <RegistrarDotacionNueva />;
+        return <RegistrarDotacionNueva />;
       case "registrar-reutilizada":
-         return <RegistrarDotacionUsadas />;
+        return <RegistrarDotacionUsadas />;
       case "asignar-dotacion":
-         return <AsignarDotacionEmpleado />;
+        return <AsignarDotacionEmpleado />;
       case "historial-asignaciones":
         return <HistorialAsignaciones />;
       case "devoluciones":
@@ -54,26 +51,28 @@ const HomeAdmin: React.FC = () => {
       case "perfil":
         return <Perfil />;
       case "notificaciones":
-        return <Notificaciones />; 
+        return <Notificaciones />;
       case "ajustes":
-        return <Ajustes />;  
-        
-      // Agrega más casos según tus componentes
+        return <Ajustes />;
       default:
-        return <DashboardDotaciones/>;
+        return <DashboardDotaciones />;
     }
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#fafbfc", width:"100%"}}>
-      <SidebarAdmin onMenuSelect={setSelectedMenu} user={user || "Admin"} />
+    <div style={{ display: "flex", minHeight: "100vh", background: "#fafbfc", width: "100%" }}>
+      <SidebarAdmin 
+        onMenuSelect={setSelectedMenu} 
+        activeItem={selectedMenu}
+      />
       <main
         className="app-main-content"
         style={{
           flex: 1,
-          padding: "0",
+          padding: "2rem",
           minHeight: "100vh",
           maxWidth: "100%",
+          overflow: "auto"
         }}
       >
         {renderMainContent()}

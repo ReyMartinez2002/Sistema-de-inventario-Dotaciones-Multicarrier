@@ -10,7 +10,13 @@ const auditoriaRoutes = require('./routes/auditoria.routes');
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+// Configuración CORS más estricta
+app.use(cors({
+  origin: 'http://localhost:5173', // Asegúrate que coincide con tu URL de frontend
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
