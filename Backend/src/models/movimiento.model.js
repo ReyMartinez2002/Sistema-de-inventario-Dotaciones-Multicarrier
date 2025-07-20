@@ -25,12 +25,34 @@ const getById = async (id_movimiento) => {
 };
 
 const create = async (data) => {
-  const [result] = await pool.query(
-    `INSERT INTO movimientos_dotacion (id_dotacion, id_empleado, id_usuario, tipo_movimiento, cantidad, estado_post_movimiento, observaciones, archivo_adjunto, fecha)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [data.id_dotacion, data.id_empleado, data.id_usuario, data.tipo_movimiento, data.cantidad, data.estado_post_movimiento, data.observaciones, data.archivo_adjunto]
-  );
-  return result.insertId;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
+      `INSERT INTO movimientos_dotacion 
+       (id_dotacion, id_empleado, id_usuario, tipo_movimiento, cantidad, estado_post_movimiento, observaciones, archivo_adjunto, fecha)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [data.id_dotacion, data.id_empleado, data.id_usuario, data.tipo_movimiento, data.cantidad, data.estado_post_movimiento, data.observaciones, data.archivo_adjunto]
+    );
+
+    let updateQuery;
+    if (data.tipo_movimiento === 'ENTRADA') {
+      updateQuery = 'UPDATE dotaciones SET stock_nuevo = stock_nuevo + ? WHERE id_dotacion = ?';
+    } else {
+      updateQuery = 'UPDATE dotaciones SET stock_nuevo = stock_nuevo - ? WHERE id_dotacion = ?';
+    }
+
+    await conn.query(updateQuery, [data.cantidad, data.id_dotacion]);
+    await conn.commit();
+    return result.insertId;
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error en movimiento create:', error);
+    throw error;
+  } finally {
+    conn.release();
+  }
 };
 
 module.exports = {

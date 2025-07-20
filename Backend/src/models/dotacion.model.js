@@ -2,13 +2,24 @@ const pool = require('../config/db');
 
 const getAll = async () => {
   const [rows] = await pool.query(
-    'SELECT d.*, s.nombre as subcategoria, c.nombre as categoria FROM dotaciones d JOIN subcategorias_dotacion s ON d.id_subcategoria=s.id_subcategoria JOIN categorias_dotacion c ON s.id_categoria=c.id_categoria WHERE d.eliminado=FALSE'
+    `SELECT d.*, s.nombre as subcategoria, c.nombre as categoria 
+     FROM dotaciones d 
+     JOIN subcategorias_dotacion s ON d.id_subcategoria=s.id_subcategoria 
+     JOIN categorias_dotacion c ON s.id_categoria=c.id_categoria 
+     WHERE d.eliminado=FALSE`
   );
   return rows;
 };
 
 const getById = async (id_dotacion) => {
-  const [rows] = await pool.query('SELECT * FROM dotaciones WHERE id_dotacion = ?', [id_dotacion]);
+  const [rows] = await pool.query(
+    `SELECT d.*, s.nombre as subcategoria, c.nombre as categoria 
+     FROM dotaciones d
+     JOIN subcategorias_dotacion s ON d.id_subcategoria=s.id_subcategoria
+     JOIN categorias_dotacion c ON s.id_categoria=c.id_categoria
+     WHERE d.id_dotacion = ? AND d.eliminado=FALSE`,
+    [id_dotacion]
+  );
   return rows[0];
 };
 

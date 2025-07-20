@@ -4,32 +4,23 @@ const { v4: uuidv4 } = require('uuid');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
-/**
- * @description Middleware de autenticación JWT con verificación de token inválido
- * @param {Object} req - Request object
- * @param {Object} res - Response object
- * @param {Function} next - Next middleware function
- */
+// Middleware de autenticación
 const authenticateToken = async (req, res, next) => {
   try {
-    // Permitir endpoints públicos
+    // Definir rutas públicas que no requieren autenticación
     const publicRoutes = [
-      { path: '/setup-first-admin', method: 'POST' },
-      { path: '/login', method: 'POST' },
-      { path: '/healthcheck', method: 'GET' }
+      { path: '/api/auth/setup-first-admin', method: 'POST' },
+      { path: '/api/auth/login', method: 'POST' },
+      { path: '/api/healthcheck', method: 'GET' }
     ];
 
-    const isPublicRoute = publicRoutes.some(
-      route => route.path === req.path && route.method === req.method
-    );
+    // Permitir acceso si es una ruta pública
+    const isPublicRoute = publicRoutes.some(route => route.path === req.path && route.method === req.method);
+    if (isPublicRoute) return next();
 
-    if (isPublicRoute) {
-      return next();
-    }
-
-    // Verificar token
+    // Obtener token del encabezado Authorization
     const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1];
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({
@@ -39,7 +30,7 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar si el token está en la lista negra
+    // Validar si el token fue invalidado (sesión cerrada)
     const [invalidToken] = await pool.query(
       'SELECT 1 FROM tokens_invalidados WHERE token = ? AND fecha_expiracion > NOW()',
       [token]
@@ -53,38 +44,41 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar y decodificar el token JWT
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    // Verificar validez del token JWT
+    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
       if (err) {
-        let errorMessage = 'Token inválido';
-        let errorCode = 'INVALID_TOKEN';
+        const errorResponse = {
+          error: 'Token inválido',
+          code: 'INVALID_TOKEN',
+          timestamp: new Date().toISOString()
+        };
 
         if (err.name === 'TokenExpiredError') {
-          errorMessage = 'Token expirado';
-          errorCode = 'TOKEN_EXPIRED';
+          errorResponse.error = 'Token expirado';
+          errorResponse.code = 'TOKEN_EXPIRED';
         } else if (err.name === 'JsonWebTokenError') {
-          errorMessage = 'Token malformado';
-          errorCode = 'MALFORMED_TOKEN';
+          errorResponse.error = 'Token malformado';
+          errorResponse.code = 'MALFORMED_TOKEN';
         }
 
-        return res.status(403).json({
-          error: errorMessage,
-          code: errorCode,
-          timestamp: new Date().toISOString()
-        });
+        return res.status(403).json(errorResponse);
       }
 
-      // Añadir información del usuario al request
+      // Adjuntar usuario decodificado a la solicitud
       req.usuario = {
         ...decoded,
-        sessionId: decoded.sessionId || uuidv4() // Para rastreo de sesión
+        sessionId: decoded.sessionId || uuidv4()
       };
 
-      // Registrar acceso en la base de datos
-      pool.query(
-        'INSERT INTO accesos_token (token, id_usuario, ruta, metodo) VALUES (?, ?, ?, ?)',
-        [token, decoded.id_usuario, req.path, req.method]
-      ).catch(console.error);
+      // Registrar acceso
+      try {
+        await pool.query(
+          'INSERT INTO accesos_token (token, id_usuario, ruta, metodo) VALUES (?, ?, ?, ?)',
+          [token, decoded.id_usuario, req.path, req.method]
+        );
+      } catch (logError) {
+        console.error('Error registrando acceso del token:', logError);
+      }
 
       next();
     });

@@ -14,6 +14,10 @@ import Perfil from "../components/Perfil";
 import Ajustes from "../components/Ajustes";
 import Notificaciones from "../components/Notificaciones";
 import { Navigate } from "react-router-dom";
+import RegistrarUsuario from "../components/usuarios/RegistrarUsuario";
+import ListaUsuarios from "../components/usuarios/ListaUsuarios";
+import RolesPermisos from "../components/usuarios/RolesPermisos";
+import HistorialAccesos from "../components/usuarios/HistorialAccesos";
 
 const HomeAdmin: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -28,43 +32,57 @@ const HomeAdmin: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const renderMainContent = () => {
-    switch (selectedMenu) {
-      case "dashboard":
-        return <DashboardDotaciones />;
-      case "registrar-nueva":
-        return <RegistrarDotacionNueva />;
-      case "registrar-reutilizada":
-        return <RegistrarDotacionUsadas />;
-      case "asignar-dotacion":
-        return <AsignarDotacionEmpleado />;
-      case "historial-asignaciones":
-        return <HistorialAsignaciones />;
-      case "devoluciones":
-        return <Devoluciones />;
-      case "gestionar-tipos-dotacion":
-        return <GestionarTiposDotacion />;
-      case "consulta-stock":
-        return <ConsultaStock />;
-      case "reportes-dotaciones":
-        return <ReporteDotaciones />;
-      case "perfil":
-        return <Perfil />;
-      case "notificaciones":
-        return <Notificaciones />;
-      case "ajustes":
-        return <Ajustes />;
-      default:
-        return <DashboardDotaciones />;
-    }
-  };
+ const renderMainContent = () => {
+  switch (selectedMenu) {
+    case "dashboard":
+      return <DashboardDotaciones />;
+    case "registrar-nueva":
+      return <RegistrarDotacionNueva />;
+    case "registrar-reutilizada":
+      return <RegistrarDotacionUsadas />;
+    case "asignar-dotacion":
+      return <AsignarDotacionEmpleado />;
+    case "historial-asignaciones":
+      return <HistorialAsignaciones />;
+    case "devoluciones":
+      return <Devoluciones />;
+    case "gestionar-tipos-dotacion":
+      return <GestionarTiposDotacion />;
+    case "consulta-stock":
+      return <ConsultaStock />;
+    case "reportes-dotaciones":
+      return <ReporteDotaciones />;
+    case "perfil":
+      return <Perfil />;
+    case "notificaciones":
+      return <Notificaciones />;
+    case "ajustes":
+      return <Ajustes />;
+    case "registrar-usuario":
+      return <RegistrarUsuario />;
+    case "lista-usuarios":
+      return <ListaUsuarios />;
+    case "roles-permisos":
+      return <RolesPermisos />;
+    case "historial-accesos":
+      return <HistorialAccesos />;
+    default:
+      return <DashboardDotaciones />;
+  }
+};
+
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#fafbfc", width: "100%" }}>
       <SidebarAdmin 
-        onMenuSelect={setSelectedMenu} 
-        activeItem={selectedMenu}
-      />
+  onMenuSelect={setSelectedMenu} 
+  activeItem={selectedMenu}
+  user="Juan Pérez"
+  role="Administrador"
+  userRoleId={1} // o 2 si no es admin
+  avatarUrl="https://miavatar.com/juan.jpg"
+/>
+
       <main
         className="app-main-content"
         style={{

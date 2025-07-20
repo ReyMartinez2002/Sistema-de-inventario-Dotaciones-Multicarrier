@@ -7,7 +7,6 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   loading: boolean;
   error: string | null;
-  sessionId: string | null; // Añade esta línea
   isAuthenticated: boolean;
   clearError: () => void;
 }

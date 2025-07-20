@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Sidebar as PrimeSidebar } from "primereact/sidebar";
+import { Sidebar } from "primereact/sidebar";
 import { Button } from "primereact/button";
 import { PanelMenu } from "primereact/panelmenu";
 import type { MenuItem } from "primereact/menuitem";
@@ -8,36 +8,33 @@ import { Tooltip } from "primereact/tooltip";
 import { Badge } from "primereact/badge";
 import { Divider } from "primereact/divider";
 import { classNames } from "primereact/utils";
-import { useAuth } from "../contex/useAuth";
 import "./styles/SidebarAdmin.css";
 
-interface SidebarAdminProps {
+export interface SidebarAdminProps {
   onMenuSelect: (key: string) => void;
+  user: string;
+  role?: string;
   unreadNotifications?: number;
   activeItem?: string;
+  onLogout?: () => void;
   avatarUrl?: string;
+  userRoleId?: number; // Nuevo prop para el id del rol del usuario
 }
 
 const SidebarAdmin: React.FC<SidebarAdminProps> = ({ 
   onMenuSelect, 
+  user, 
+  role = "Administrador",
   unreadNotifications = 0,
   activeItem = "",
-  avatarUrl
+  onLogout = () => window.location.reload(),
+  avatarUrl,
+  userRoleId = 1 // Por defecto superadmin
 }) => {
-  const { user, logout } = useAuth();
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  // Función para manejar el cierre de sesión
-  const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
-  }, [logout]);
 
   // Función para verificar el tamaño de pantalla
   const checkMobile = useCallback(() => {
@@ -73,7 +70,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
   }, [isMobile, sidebarVisible]);
 
   // Generar URL de avatar
-  const generatedAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nombre || "Admin")}&background=cd1818&color=fff&size=256&bold=true&length=2&font-size=0.5&rounded=true`;
+  const generatedAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user || "Admin")}&background=cd1818&color=fff&size=256&bold=true&length=2&font-size=0.5&rounded=true`;
 
   // Manejar clic en menú
   const handleMenuClick = useCallback((key: string) => {
@@ -81,7 +78,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
     if (isMobile) setSidebarVisible(false);
   }, [isMobile, onMenuSelect]);
 
-  // Items del menú base (comunes a todos los roles)
+  // Items base del menú
   const baseMenuItems: MenuItem[] = [
     {
       label: collapsed ? "" : "Dashboard",
@@ -101,28 +98,6 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
         </div>
       )
     },
-    {
-      label: collapsed ? "" : "Perfil",
-      icon: "pi pi-user",
-      command: () => handleMenuClick("perfil"),
-      className: classNames({
-        'active-menu-item': activeItem === 'perfil',
-        'collapsed-menu-item': collapsed
-      }),
-      template: (item) => (
-        <div className="menu-item-content">
-          <i className={item.icon} />
-          {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'perfil' && (
-            <div className="active-indicator" />
-          )}
-        </div>
-      )
-    }
-  ];
-
-  // Items del menú para superadmin
-  const superadminMenuItems: MenuItem[] = [
     {
       label: collapsed ? "" : "Dotaciones",
       icon: "pi pi-briefcase",
@@ -181,6 +156,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           className: activeItem === 'gestionar-tipos-dotacion' ? 'active-submenu-item' : ''
         }
       ],
+      
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
@@ -193,62 +169,50 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           )}
         </div>
       )
-    },
-    {
-      label: collapsed ? "" : "Ajustes",
-      icon: "pi pi-cog",
-      command: () => handleMenuClick("ajustes"),
-      className: classNames({
-        'active-menu-item': activeItem === 'ajustes',
-        'collapsed-menu-item': collapsed
-      }),
-      template: (item) => (
-        <div className="menu-item-content">
-          <i className={item.icon} />
-          {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'ajustes' && (
-            <div className="active-indicator" />
-          )}
-        </div>
-      )
     }
   ];
 
-  // Items del menú para admin
-  const adminMenuItems: MenuItem[] = [
+  // Items de administración (solo para roles con permisos)
+  const adminMenuItems: MenuItem[] = userRoleId === 1 ? [
     {
-      label: collapsed ? "" : "Dotaciones",
-      icon: "pi pi-briefcase",
-      expanded: !collapsed && activeItem.includes('dotacion'),
+      label: collapsed ? "" : "Usuarios",
+      icon: "pi pi-users",
+      expanded: !collapsed && activeItem.includes('usuarios'),
       className: classNames({
-        'active-parent': activeItem.includes('dotacion'),
+        'active-parent': activeItem.includes('usuarios'),
         'collapsed-menu-item': collapsed
       }),
       items: [
         {
-          label: "Asignar",
+          label: "Registrar Usuario",
           icon: "pi pi-user-plus",
-          command: () => handleMenuClick("asignar-dotacion"),
-          className: activeItem === 'asignar-dotacion' ? 'active-submenu-item' : ''
+          command: () => handleMenuClick("registrar-usuario"),
+          className: activeItem === 'registrar-usuario' ? 'active-submenu-item' : ''
         },
         {
-          label: "Historial",
-          icon: "pi pi-clock",
-          command: () => handleMenuClick("historial-asignaciones"),
-          className: activeItem === 'historial-asignaciones' ? 'active-submenu-item' : ''
+          label: "Lista de Usuarios",
+          icon: "pi pi-list",
+          command: () => handleMenuClick("lista-usuarios"),
+          className: activeItem === 'lista-usuarios' ? 'active-submenu-item' : ''
         },
         {
-          label: "Consulta Stock",
-          icon: "pi pi-search",
-          command: () => handleMenuClick("consulta-stock"),
-          className: activeItem === 'consulta-stock' ? 'active-submenu-item' : ''
+          label: "Roles y Permisos",
+          icon: "pi pi-shield",
+          command: () => handleMenuClick("roles-permisos"),
+          className: activeItem === 'roles-permisos' ? 'active-submenu-item' : ''
+        },
+        {
+          label: "Historial de Accesos",
+          icon: "pi pi-history",
+          command: () => handleMenuClick("historial-accesos"),
+          className: activeItem === 'historial-accesos' ? 'active-submenu-item' : ''
         }
       ],
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem.includes('dotacion') && (
+          {!collapsed && activeItem.includes('usuarios') && (
             <div className="active-indicator" />
           )}
           {!collapsed && (
@@ -257,32 +221,28 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
         </div>
       )
     }
-  ];
+  ] : [];
 
-  // Items del menú para viewer
-  const viewerMenuItems: MenuItem[] = [
+  // Items comunes del menú
+  const commonMenuItems: MenuItem[] = [
     {
-      label: collapsed ? "" : "Consulta Stock",
-      icon: "pi pi-search",
-      command: () => handleMenuClick("consulta-stock"),
+      label: collapsed ? "" : "Perfil",
+      icon: "pi pi-user",
+      command: () => handleMenuClick("perfil"),
       className: classNames({
-        'active-menu-item': activeItem === 'consulta-stock',
+        'active-menu-item': activeItem === 'perfil',
         'collapsed-menu-item': collapsed
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'consulta-stock' && (
+          {!collapsed && activeItem === 'perfil' && (
             <div className="active-indicator" />
           )}
         </div>
       )
-    }
-  ];
-
-  // Items comunes finales
-  const finalMenuItems: MenuItem[] = [
+    },
     {
       label: collapsed ? "" : "Notificaciones",
       icon: "pi pi-bell",
@@ -309,13 +269,31 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
       )
     },
     {
+      label: collapsed ? "" : "Ajustes",
+      icon: "pi pi-cog",
+      command: () => handleMenuClick("ajustes"),
+      className: classNames({
+        'active-menu-item': activeItem === 'ajustes',
+        'collapsed-menu-item': collapsed
+      }),
+      template: (item) => (
+        <div className="menu-item-content">
+          <i className={item.icon} />
+          {!collapsed && <span>{item.label}</span>}
+          {!collapsed && activeItem === 'ajustes' && (
+            <div className="active-indicator" />
+          )}
+        </div>
+      )
+    },
+    {
       separator: true,
       visible: !collapsed
     },
     {
       label: collapsed ? "" : "Cerrar sesión",
       icon: "pi pi-sign-out",
-      command: () => handleLogout(),
+      command: () => onLogout(),
       className: classNames('logout-menu-item', {
         'collapsed-menu-item': collapsed
       }),
@@ -328,30 +306,8 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
     }
   ];
 
-  // Construir menú completo según el rol
-  const buildMenuItems = (): MenuItem[] => {
-    if (!user) return [];
-    
-    let roleSpecificItems: MenuItem[] = [];
-    
-    switch(user.rol) {
-      case 'superadmin':
-        roleSpecificItems = [...superadminMenuItems];
-        break;
-      case 'admin':
-        roleSpecificItems = [...adminMenuItems];
-        break;
-      case 'viewer':
-        roleSpecificItems = [...viewerMenuItems];
-        break;
-      default:
-        roleSpecificItems = [];
-    }
-
-    return [...baseMenuItems, ...roleSpecificItems, ...finalMenuItems];
-  };
-
-  const menuItems = buildMenuItems();
+  // Combinar todos los items del menú
+  const menuItems = [...baseMenuItems, ...adminMenuItems, ...commonMenuItems];
 
   return (
     <>
@@ -376,7 +332,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
       )}
       
       {isMobile ? (
-        <PrimeSidebar
+        <Sidebar
           visible={sidebarVisible}
           onHide={() => setSidebarVisible(false)}
           showCloseIcon={false}
@@ -387,19 +343,21 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
         >
           <SidebarContent 
             user={user}
+            role={role}
             avatarUrl={avatarUrl || generatedAvatarUrl}
             panelMenuItems={menuItems}
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed(!collapsed)}
             ref={sidebarRef}
           />
-        </PrimeSidebar>
+        </Sidebar>
       ) : (
         <aside className={classNames("fixed-sidebar custom-sidebar desktop-sidebar", {
           'collapsed': collapsed
         })} ref={sidebarRef}>
           <SidebarContent 
             user={user}
+            role={role}
             avatarUrl={avatarUrl || generatedAvatarUrl}
             panelMenuItems={menuItems}
             collapsed={collapsed}
@@ -412,12 +370,13 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
 };
 
 const SidebarContent = React.forwardRef<HTMLDivElement, {
-    user: { nombre: string; rol: string } | null;
-    avatarUrl: string;
-    panelMenuItems: MenuItem[];
-    collapsed: boolean;
+  user: string;
+  role: string;
+  avatarUrl: string;
+  panelMenuItems: MenuItem[];
+  collapsed: boolean;
   onToggleCollapse: () => void;
-}>(({ user, avatarUrl, panelMenuItems, collapsed }, ref) => (
+}>(({ user, role, avatarUrl, panelMenuItems, collapsed, onToggleCollapse }, ref) => (
   <div className="sidebar-content-wrapper" ref={ref}>
     <div className="sidebar-header">
       <Avatar
@@ -431,14 +390,11 @@ const SidebarContent = React.forwardRef<HTMLDivElement, {
           transition: 'all 0.3s ease'
         }}
       />
-      {!collapsed && user && (
+      {!collapsed && (
         <>
           <span className="sidebar-title">Gestión EPP</span>
-          <span className="sidebar-username">{user.nombre}</span>
-          <span className="sidebar-role">
-            {user.rol === 'superadmin' ? 'Super Administrador' : 
-             user.rol === 'admin' ? 'Administrador' : 'Visualizador'}
-          </span>
+          <span className="sidebar-username">{user || "Admin"}</span>
+          <span className="sidebar-role">{role}</span>
         </>
       )}
     </div>
@@ -458,6 +414,13 @@ const SidebarContent = React.forwardRef<HTMLDivElement, {
     </div>
     
     <div className="sidebar-footer">
+      <Button 
+        icon={`pi pi-chevron-${collapsed ? 'right' : 'left'}`}
+        className="p-button-rounded p-button-text p-button-sm toggle-collapse-btn"
+        onClick={onToggleCollapse}
+        tooltip={collapsed ? "Expandir menú" : "Colapsar menú"}
+        tooltipOptions={{ position: 'right' }}
+      />
       {!collapsed && (
         <>
           <Divider className="footer-divider" />
