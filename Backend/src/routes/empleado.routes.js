@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const empleadoController = require('../controllers/empleado.controller');
-const authenticateToken = require('../middleware/auth.middleware');
-const allowRoles = require('../middleware/roles.middleware');
+const { verifyToken, allowRoles } = require('../middleware/auth.middleware');
 
-router.get('/', authenticateToken, empleadoController.getAll);
-router.get('/:id', authenticateToken, empleadoController.getById);
-router.post('/', authenticateToken, allowRoles('admin'), empleadoController.create);
-router.put('/:id', authenticateToken, allowRoles('admin'), empleadoController.update);
-router.delete('/:id', authenticateToken, allowRoles('admin'), empleadoController.remove);
+router.get('/', verifyToken, empleadoController.getAll);
+router.get('/:id', verifyToken, empleadoController.getById);
+router.post('/', verifyToken, allowRoles('admin'), empleadoController.create);
+router.put('/:id', verifyToken, allowRoles('admin'), empleadoController.update);
+router.delete('/:id', verifyToken, allowRoles('admin'), empleadoController.remove);
 
 module.exports = router;

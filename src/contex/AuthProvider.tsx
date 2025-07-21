@@ -109,6 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error,
         isAuthenticated: !!user,
         clearError,
+        token: user?.token ?? null,
       }}
     >
       {children}

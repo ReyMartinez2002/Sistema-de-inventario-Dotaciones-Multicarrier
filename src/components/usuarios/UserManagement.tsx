@@ -12,7 +12,9 @@ import { classNames } from 'primereact/utils';
 import { Divider } from 'primereact/divider';
 import { Toolbar } from 'primereact/toolbar';
 import { Card } from 'primereact/card';
-import "./styles.css"
+import { Api } from '../../services/api';
+import { useAuth } from '../../contex/useAuth';
+import "./styles.css";
 
 // Definición de tipos
 type Rol = {
@@ -45,8 +47,12 @@ const UserManagement: React.FC = () => {
   const [userDialog, setUserDialog] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [globalFilter, setGlobalFilter] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const toast = useRef<Toast>(null);
   const dt = useRef<DataTable<Usuario[]>>(null);
+  const { user: currentUser } = useAuth();
+const token = currentUser?.token;
+  const api = new Api();
   
   // Estado para el formulario
   const [user, setUser] = useState<Usuario>({
@@ -75,43 +81,44 @@ const UserManagement: React.FC = () => {
     { label: 'Inactivo', value: 'inactivo' }
   ];
 
-  // Cargar datos de ejemplo (en un caso real sería una API)
+  // Cargar usuarios desde el backend
   useEffect(() => {
-    // Simular carga de datos
-    const dummyUsers: Usuario[] = [
-      {
-        id_usuario: 1,
-        username: 'superadmin',
-        nombre: 'Administrador Principal',
-        rol: 'superadmin',
-        id_rol: 1,
-        estado: 'activo',
-        fecha_creacion: new Date('2023-01-01'),
-        fecha_actualizacion: new Date('2023-01-02')
-      },
-      {
-        id_usuario: 2,
-        username: 'admin1',
-        nombre: 'Administrador Secundario',
-        rol: 'admin',
-        id_rol: 2,
-        estado: 'activo',
-        fecha_creacion: new Date('2023-01-15'),
-        fecha_actualizacion: new Date('2023-01-16')
-      },
-      {
-        id_usuario: 3,
-        username: 'viewer1',
-        nombre: 'Usuario de Solo Lectura',
-        rol: 'visualizador',
-        id_rol: 3,
-        estado: 'activo',
-        fecha_creacion: new Date('2023-02-01'),
-        fecha_actualizacion: null
-      }
-    ];
-    setUsers(dummyUsers);
-  }, []);
+  const loadUsers = async () => {
+    if (!token) return; // No hacer la petición si no hay token
+    
+    setLoading(true);
+    try {
+      const response = await api.users.getAll(token);
+      setUsers(response.data);
+    } catch (error: any) {
+      showError('Error al cargar usuarios', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  loadUsers();
+}, [token]);
+
+  // Mostrar mensaje de error
+  const showError = (summary: string, detail: string) => {
+    toast.current?.show({
+      severity: 'error',
+      summary,
+      detail,
+      life: 5000
+    });
+  };
+
+  // Mostrar mensaje de éxito
+  const showSuccess = (detail: string) => {
+    toast.current?.show({
+      severity: 'success',
+      summary: 'Éxito',
+      detail,
+      life: 3000
+    });
+  };
 
   // Abrir diálogo para nuevo usuario
   const openNew = () => {
@@ -148,97 +155,108 @@ const UserManagement: React.FC = () => {
   };
 
   // Guardar o actualizar usuario
-  const saveUser = () => {
-    setSubmitted(true);
+const saveUser = async () => {
+  setSubmitted(true);
 
-    // Validaciones
-    if (!user.username || !user.nombre || !user.rol || !user.estado) {
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Todos los campos son requeridos',
-        life: 3000
-      });
-      return;
-    }
+  // Validaciones básicas del formulario
+  if (!user.username || !user.nombre || !user.rol || !user.estado) {
+    showError('Error', 'Todos los campos son requeridos');
+    return;
+  }
 
-    if (!user.id_usuario && (!user.password || !user.confirmPassword)) {
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'La contraseña es requerida para nuevos usuarios',
-        life: 3000
-      });
-      return;
-    }
+  if (!user.id_usuario && (!user.password || !user.confirmPassword)) {
+    showError('Error', 'La contraseña es requerida para nuevos usuarios');
+    return;
+  }
 
-    if (user.password !== user.confirmPassword) {
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Las contraseñas no coinciden',
-        life: 3000
-      });
-      return;
-    }
+  if (user.password !== user.confirmPassword) {
+    showError('Error', 'Las contraseñas no coinciden');
+    return;
+  }
 
-    // Simular guardado
+  // Validación del token
+  if (!token) {
+    showError('Error de autenticación', 'No se encontró el token de acceso');
+    return;
+  }
+
+  try {
     if (user.id_usuario) {
       // Actualizar usuario existente
-      const updatedUsers = users.map(u => u.id_usuario === user.id_usuario ? user : u);
-      setUsers(updatedUsers);
-      toast.current?.show({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Usuario actualizado',
-        life: 3000
-      });
+      const { password, confirmPassword, ...userData } = user;
+      await api.users.update(user.id_usuario, userData, token);
+      
+      // Actualizar estado local
+      setUsers(users.map(u => u.id_usuario === user.id_usuario ? user : u));
+      showSuccess('Usuario actualizado exitosamente');
     } else {
       // Crear nuevo usuario
-      const newUser: Usuario = {
-        ...user,
-        id_usuario: users.length > 0 ? Math.max(...users.map(u => u.id_usuario || 0)) + 1 : 1,
-        fecha_creacion: new Date(),
-        password: user.password || '',
-        confirmPassword: user.confirmPassword || ''
-      };
-      setUsers([...users, newUser]);
-      toast.current?.show({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Usuario creado',
-        life: 3000
-      });
+      const newUser = await api.users.create(
+        {
+          username: user.username,
+          password: user.password!,
+          nombre: user.nombre,
+          rol: user.rol,
+          id_rol: user.id_rol,
+          estado: user.estado
+        },
+        token
+      );
+      
+      // Actualizar estado local
+      setUsers([...users, newUser.data]);
+      showSuccess('Usuario creado exitosamente');
     }
-
+    
     setUserDialog(false);
-  };
+  } catch (error: any) {
+    showError('Error al guardar usuario', error.message);
+  }
+};
+
+  // Cambiar estado de usuario
+const changeStatus = async (user: Usuario) => {
+  // Validación del token
+  if (!token) {
+    showError('Error de autenticación', 'No se encontró el token de acceso');
+    return;
+  }
+
+  try {
+    const newStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
+    await api.users.changeStatus(user.id_usuario as number, newStatus, token);
+    
+    // Actualizar estado local
+    setUsers(users.map(u => 
+      u.id_usuario === user.id_usuario 
+        ? { ...u, estado: newStatus } 
+        : u
+    ));
+    
+    showSuccess(`Estado cambiado a ${newStatus}`);
+  } catch (error: any) {
+    showError('Error al cambiar estado', error.message);
+  }
+};
 
   // Confirmar eliminación
   const confirmDelete = (user: Usuario) => {
     confirmDialog({
-      message: `¿Estás seguro de eliminar a ${user.nombre}?`,
+      message: `¿Estás seguro de ${user.estado === 'activo' ? 'desactivar' : 'activar'} a ${user.nombre}?`,
       header: 'Confirmar',
       icon: 'pi pi-exclamation-triangle',
-      accept: () => deleteUser(user),
+      accept: () => changeStatus(user),
       reject: () => {}
-    });
-  };
-
-  // Eliminar usuario
-  const deleteUser = (user: Usuario) => {
-    const updatedUsers = users.filter(u => u.id_usuario !== user.id_usuario);
-    setUsers(updatedUsers);
-    toast.current?.show({
-      severity: 'success',
-      summary: 'Éxito',
-      detail: 'Usuario eliminado',
-      life: 3000
     });
   };
 
   // Plantilla para acciones
   const actionBodyTemplate = (rowData: Usuario) => {
+    // No permitir editar/eliminar el usuario actual
+    if (rowData.id_usuario === currentUser?.id) {
+      return null;
+    }
+
     return (
       <div className="flex gap-2">
         <Button 
@@ -251,12 +269,12 @@ const UserManagement: React.FC = () => {
           tooltipOptions={{ position: 'top' }}
         />
         <Button 
-          icon="pi pi-trash" 
+          icon={rowData.estado === 'activo' ? 'pi pi-ban' : 'pi pi-check'} 
           rounded 
-          severity="warning" 
+          severity={rowData.estado === 'activo' ? 'warning' : 'info'} 
           className="p-button-sm" 
           onClick={() => confirmDelete(rowData)}
-          tooltip="Eliminar"
+          tooltip={rowData.estado === 'activo' ? 'Desactivar' : 'Activar'}
           tooltipOptions={{ position: 'top' }}
         />
       </div>
@@ -274,7 +292,7 @@ const UserManagement: React.FC = () => {
 
   // Plantilla para fecha
   const dateBodyTemplate = (date: Date | null) => {
-    return date ? new Date(date).toLocaleDateString() : '-';
+    return date ? new Date(date).toLocaleDateString('es-ES') : '-';
   };
 
   // Encabezado de la tabla
@@ -303,6 +321,7 @@ const UserManagement: React.FC = () => {
           severity="success" 
           onClick={openNew} 
           className="p-button-sm"
+          disabled={currentUser?.rol !== 'superadmin'}
         />
       </div>
     );
@@ -318,7 +337,7 @@ const UserManagement: React.FC = () => {
 
   return (
     <>
-       <div className="seo-metadata" style={{ display: 'none' }}>
+      <div className="seo-metadata" style={{ display: 'none' }}>
         <title>Gestión de Usuarios | Sistema Administrativo</title>
         <meta name="description" content="Administración de usuarios del sistema con roles de superadmin, admin y visualizador" />
         <meta name="keywords" content="usuarios, administración, roles, sistema" />
@@ -342,6 +361,7 @@ const UserManagement: React.FC = () => {
               header={header}
               responsiveLayout="scroll"
               emptyMessage="No se encontraron usuarios."
+              loading={loading}
             >
               <Column field="username" header="Usuario" sortable style={{ minWidth: '12rem' }} />
               <Column field="nombre" header="Nombre" sortable style={{ minWidth: '16rem' }} />
@@ -349,7 +369,12 @@ const UserManagement: React.FC = () => {
               <Column field="estado" header="Estado" body={statusBodyTemplate} sortable style={{ minWidth: '8rem' }} />
               <Column field="fecha_creacion" header="Fecha Creación" body={(rowData) => dateBodyTemplate(rowData.fecha_creacion)} sortable style={{ minWidth: '12rem' }} />
               <Column field="fecha_actualizacion" header="Última Actualización" body={(rowData) => dateBodyTemplate(rowData.fecha_actualizacion)} sortable style={{ minWidth: '12rem' }} />
-              <Column body={actionBodyTemplate} exportable={false} style={{ minWidth: '8rem' }} />
+              <Column 
+                body={actionBodyTemplate} 
+                exportable={false} 
+                style={{ minWidth: '8rem' }}
+                header="Acciones"
+              />
             </DataTable>
           </Card>
         </div>
@@ -377,6 +402,7 @@ const UserManagement: React.FC = () => {
               required
               placeholder='Ejemplo@gmail.com'
               className={classNames({ 'p-invalid': submitted && !user.username })}
+              disabled={!!user.id_usuario}
             />
             {submitted && !user.username && (
               <small className="p-error">El nombre de usuario es requerido.</small>
@@ -420,6 +446,7 @@ const UserManagement: React.FC = () => {
               }}
               required
               className={classNames({ 'p-invalid': submitted && !user.rol })}
+              disabled={currentUser?.rol !== 'superadmin'}
             />
             {submitted && !user.rol && (
               <small className="p-error">El rol es requerido.</small>
@@ -439,6 +466,7 @@ const UserManagement: React.FC = () => {
               onChange={(e: { value: 'activo' | 'inactivo' }) => setUser({ ...user, estado: e.value })}
               required
               className={classNames({ 'p-invalid': submitted && !user.estado })}
+              disabled={currentUser?.rol !== 'superadmin'}
             />
             {submitted && !user.estado && (
               <small className="p-error">El estado es requerido.</small>

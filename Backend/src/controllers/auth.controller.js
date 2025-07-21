@@ -155,13 +155,14 @@ const logout = async (req, res) => {
 
 const validateToken = async (req, res) => {
   try {
+    // Cambia req.usuario por req.user
     res.status(200).json({
-      id_usuario: req.usuario.id_usuario,
-      username: req.usuario.username,
-      nombre: req.usuario.nombre,
-      rol: req.usuario.rol,
-      id_rol: req.usuario.id_rol,
-      email: req.usuario.email || req.usuario.username,
+      id_usuario: req.user.id_usuario,
+      username: req.user.username,
+      nombre: req.user.nombre,
+      rol: req.user.rol,
+      id_rol: req.user.id_rol,
+      email: req.user.email || req.user.username,
     });
   } catch (error) {
     res.status(500).json({ error: 'Error validando token.' });

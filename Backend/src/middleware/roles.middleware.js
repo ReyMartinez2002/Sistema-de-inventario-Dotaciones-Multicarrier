@@ -1,8 +1,5 @@
-const allowRoles = (...roles) => (req, res, next) => {
-  if (!roles.includes(req.usuario.rol)) {
-    return res.status(403).json({ error: 'No tienes permisos suficientes' });
-  }
-  next();
+const db = require('../config/db');
+exports.getRoles = async (req, res) => {
+  const [rows] = await db.query('SELECT id_rol AS id, nombre AS value, nombre AS label FROM roles');
+  res.json(rows);
 };
-
-module.exports = allowRoles;
