@@ -1,58 +1,165 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
+const { validationResult } = require('express-validator');
+
+// Configuración de validaciones (puede moverse a un archivo aparte)
+exports.userValidations = {
+  create: [
+    // Validaciones para creación de usuario
+  ],
+  update: [
+    // Validaciones para actualización
+  ],
+  changeStatus: [
+    // Validaciones para cambio de estado
+  ]
+};
+
+// Helper para manejar errores
+const handleError = (res, err, context) => {
+  console.error(`Error en ${context}:`, {
+    timestamp: new Date().toISOString(),
+    error: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+
+  const statusCode = err.code || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: `Error al ${context}`,
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor'
+  });
+};
+
+// Helper para formatear respuesta de usuario
+const formatUserResponse = (user) => {
+  const { password_hash, ...userData } = user;
+  return userData;
+};
 
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.getAll();
-    res.json(users);
+    
+    // Filtrar datos sensibles de todos los usuarios
+    const safeUsers = users.map(user => formatUserResponse(user));
+    
+    res.json({
+      success: true,
+      count: safeUsers.length,
+      data: safeUsers
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error al obtener usuarios', error: err.message });
+    handleError(res, err, 'obtener usuarios');
   }
 };
 
 exports.createUser = async (req, res) => {
   try {
-    const { username, password, nombre, rol, id_rol, estado } = req.body;
-
-    if (!username || !password || !nombre || !rol || !id_rol || !estado) {
-      return res.status(400).json({ message: 'Datos obligatorios faltantes' });
+    // Validación de datos
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array()
+      });
     }
 
+    const { username, password, nombre, rol, id_rol, estado = true } = req.body;
+
+    // Validación de campos obligatorios
+    const requiredFields = ['username', 'password', 'nombre', 'rol', 'id_rol'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos obligatorios faltantes',
+        missingFields
+      });
+    }
+
+    // Validar nombre de usuario único
     const existingUser = await User.findByUsername(username);
     if (existingUser) {
-      return res.status(409).json({ message: 'El nombre de usuario ya está en uso' });
+      return res.status(409).json({
+        success: false,
+        message: 'El nombre de usuario ya está en uso',
+        suggestion: 'Intente con una variación o añada números'
+      });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
+    // Validar fortaleza de contraseña
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña debe tener al menos 8 caracteres'
+      });
+    }
 
-    const newUser = await User.create({ username, password_hash, nombre, rol, id_rol, estado });
+    // Hash de contraseña
+    const saltRounds = 12; // Más seguro que 10
+    const password_hash = await bcrypt.hash(password, saltRounds);
+
+    // Crear usuario
+    const newUser = await User.create({ 
+      username, 
+      password_hash, 
+      nombre, 
+      rol, 
+      id_rol, 
+      estado 
+    });
 
     if (!newUser) {
-      // Si newUser es null o undefined, lanzamos error
-      throw new Error('No se pudo obtener el usuario creado.');
+      throw new Error('No se pudo obtener el usuario creado');
     }
 
-    const userResponse = { ...newUser };
-    delete userResponse.password_hash;
-
-    res.status(201).json(userResponse);
+    res.status(201).json({
+      success: true,
+      message: 'Usuario creado exitosamente',
+      data: formatUserResponse(newUser)
+    });
 
   } catch (err) {
-    console.error('Error en createUser:', err);
-    res.status(500).json({ message: 'Error al crear usuario', error: err.message });
+    handleError(res, err, 'crear usuario');
   }
 };
-
 
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, rol, id_rol, estado } = req.body;
-    await User.update(id, { nombre, rol, id_rol, estado });
-    res.json({ message: 'Usuario actualizado' });
+
+    // Validar que el usuario exista
+    const userExists = await User.findById(id);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Validar datos de entrada
+    if (!nombre && !rol && !id_rol && estado === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe proporcionar al menos un campo para actualizar'
+      });
+    }
+
+    // Actualizar usuario
+    const updatedUser = await User.update(id, { nombre, rol, id_rol, estado });
+
+    res.json({
+      success: true,
+      message: 'Usuario actualizado exitosamente',
+      data: formatUserResponse(updatedUser)
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Error al actualizar usuario', error: err.message });
+    handleError(res, err, 'actualizar usuario');
   }
 };
 
@@ -60,9 +167,34 @@ exports.changeUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
+
+    // Validar que el estado sea booleano
+    if (typeof estado !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'El estado debe ser un valor booleano (true/false)'
+      });
+    }
+
+    // Validar que el usuario exista
+    const userExists = await User.getById(id);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Cambiar estado
     await User.changeStatus(id, estado);
-    res.json({ message: `Estado cambiado a ${estado}` });
+
+    res.json({
+      success: true,
+      message: `Estado del usuario cambiado a ${estado ? 'activo' : 'inactivo'}`,
+      data: { id, estado }
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Error al cambiar estado', error: err.message });
+    handleError(res, err, 'cambiar estado de usuario');
   }
 };
