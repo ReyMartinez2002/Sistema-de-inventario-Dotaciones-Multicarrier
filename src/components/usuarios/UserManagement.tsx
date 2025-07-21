@@ -51,7 +51,7 @@ const UserManagement: React.FC = () => {
   const toast = useRef<Toast>(null);
   const dt = useRef<DataTable<Usuario[]>>(null);
   const { user: currentUser } = useAuth();
-const token = currentUser?.token;
+  const token = currentUser?.token;
   const api = new Api();
   
   // Estado para el formulario
@@ -83,22 +83,28 @@ const token = currentUser?.token;
 
   // Cargar usuarios desde el backend
   useEffect(() => {
-  const loadUsers = async () => {
-    if (!token) return; // No hacer la petición si no hay token
+    const loadUsers = async () => {
+      if (!token) return;
+      
+      setLoading(true);
+      try {
+        const response = await api.users.getAll(token);
+        setUsers(response.data);
+      } catch (error: any) {
+        showError('Error al cargar usuarios', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    setLoading(true);
-    try {
-      const response = await api.users.getAll(token);
-      setUsers(response.data);
-    } catch (error: any) {
-      showError('Error al cargar usuarios', error.message);
-    } finally {
-      setLoading(false);
-    }
+    loadUsers();
+  }, [token]);
+
+  // Validación de contraseña
+  const isPasswordValid = (password: string) => {
+    if (!password) return false;
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
   };
-  
-  loadUsers();
-}, [token]);
 
   // Mostrar mensaje de error
   const showError = (summary: string, detail: string) => {
@@ -155,102 +161,106 @@ const token = currentUser?.token;
   };
 
   // Guardar o actualizar usuario
-const saveUser = async () => {
-  setSubmitted(true);
+  const saveUser = async () => {
+    setSubmitted(true);
 
-  // Validaciones básicas del formulario
-  if (!user.username || !user.nombre || !user.rol || !user.estado) {
-    showError('Error', 'Todos los campos son requeridos');
-    return;
-  }
-
-  if (!user.id_usuario && (!user.password || !user.confirmPassword)) {
-    showError('Error', 'La contraseña es requerida para nuevos usuarios');
-    return;
-  }
-
-  if (user.password !== user.confirmPassword) {
-    showError('Error', 'Las contraseñas no coinciden');
-    return;
-  }
-
-  // Validación del token
-  if (!token) {
-    showError('Error de autenticación', 'No se encontró el token de acceso');
-    return;
-  }
-
-  try {
-    if (user.id_usuario) {
-      // Actualizar usuario existente
-      const { password, confirmPassword, ...userData } = user;
-      await api.users.update(user.id_usuario, userData, token);
-
-      // Actualizar estado local
-      setUsers((prevUsers) =>
-        Array.isArray(prevUsers)
-          ? prevUsers.map(u => u.id_usuario === user.id_usuario ? user : u)
-          : [user]
-      );
-      showSuccess('Usuario actualizado exitosamente');
-    } else {
-      // Crear nuevo usuario
-      const newUser = await api.users.create(
-        {
-          username: user.username,
-          password: user.password!,
-          nombre: user.nombre,
-          rol: user.rol,
-          id_rol: user.id_rol,
-          estado: user.estado
-        },
-        token
-      );
-
-      // Verificación de datos y actualización del estado local
-      const newUserData = newUser.data;
-
-      setUsers((prevUsers) =>
-        Array.isArray(prevUsers)
-          ? [...prevUsers, newUserData]
-          : [newUserData]
-      );
-
-      showSuccess('Usuario creado exitosamente');
+    // Validaciones básicas del formulario
+    if (!user.username || !user.nombre || !user.rol || !user.estado) {
+      showError('Error', 'Todos los campos son requeridos');
+      return;
     }
 
-    setUserDialog(false);
-  } catch (error: any) {
-    console.error('Error en saveUser:', error);
-    showError('Error al guardar usuario', error.message || 'Error inesperado');
-  }
-};
+    if (!user.id_usuario && (!user.password || !user.confirmPassword)) {
+      showError('Error', 'La contraseña es requerida para nuevos usuarios');
+      return;
+    }
 
+    if (!user.id_usuario && !isPasswordValid(user.password || '')) {
+      showError('Error', 'La contraseña no cumple con los requisitos mínimos de seguridad');
+      return;
+    }
+
+    if (user.password !== user.confirmPassword) {
+      showError('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    // Validación del token
+    if (!token) {
+      showError('Error de autenticación', 'No se encontró el token de acceso');
+      return;
+    }
+
+    try {
+      if (user.id_usuario) {
+        // Actualizar usuario existente
+        const { password, confirmPassword, ...userData } = user;
+        await api.users.update(user.id_usuario, userData, token);
+
+        // Actualizar estado local
+        setUsers((prevUsers) =>
+          Array.isArray(prevUsers)
+            ? prevUsers.map(u => u.id_usuario === user.id_usuario ? user : u)
+            : [user]
+        );
+        showSuccess('Usuario actualizado exitosamente');
+      } else {
+        // Crear nuevo usuario
+        const newUser = await api.users.create(
+          {
+            username: user.username,
+            password: user.password!,
+            nombre: user.nombre,
+            rol: user.rol,
+            id_rol: user.id_rol,
+            estado: user.estado
+          },
+          token
+        );
+
+        // Verificación de datos y actualización del estado local
+        const newUserData = newUser.data;
+
+        setUsers((prevUsers) =>
+          Array.isArray(prevUsers)
+            ? [...prevUsers, newUserData]
+            : [newUserData]
+        );
+
+        showSuccess('Usuario creado exitosamente');
+      }
+
+      setUserDialog(false);
+    } catch (error: any) {
+      console.error('Error en saveUser:', error);
+      showError('Error al guardar usuario', error.message || 'Error inesperado');
+    }
+  };
 
   // Cambiar estado de usuario
-const changeStatus = async (user: Usuario) => {
-  // Validación del token
-  if (!token) {
-    showError('Error de autenticación', 'No se encontró el token de acceso');
-    return;
-  }
+  const changeStatus = async (user: Usuario) => {
+    // Validación del token
+    if (!token) {
+      showError('Error de autenticación', 'No se encontró el token de acceso');
+      return;
+    }
 
-  try {
-    const newStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
-    await api.users.changeStatus(user.id_usuario as number, newStatus, token);
-    
-    // Actualizar estado local
-    setUsers(users.map(u => 
-      u.id_usuario === user.id_usuario 
-        ? { ...u, estado: newStatus } 
-        : u
-    ));
-    
-    showSuccess(`Estado cambiado a ${newStatus}`);
-  } catch (error: any) {
-    showError('Error al cambiar estado', error.message);
-  }
-};
+    try {
+      const newStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
+      await api.users.changeStatus(user.id_usuario as number, newStatus, token);
+      
+      // Actualizar estado local
+      setUsers(users.map(u => 
+        u.id_usuario === user.id_usuario 
+          ? { ...u, estado: newStatus } 
+          : u
+      ));
+      
+      showSuccess(`Estado cambiado a ${newStatus}`);
+    } catch (error: any) {
+      showError('Error al cambiar estado', error.message);
+    }
+  };
 
   // Confirmar eliminación
   const confirmDelete = (user: Usuario) => {
@@ -295,33 +305,29 @@ const changeStatus = async (user: Usuario) => {
   };
 
   // Plantilla para estado
-const statusBodyTemplate = (rowData?: Usuario) => {
-  if (!rowData || !rowData.estado) {
-    return <span className="p-badge p-badge-secondary">Desconocido</span>;
-  }
+  const statusBodyTemplate = (rowData?: Usuario) => {
+    if (!rowData || !rowData.estado) {
+      return <span className="p-badge p-badge-secondary">Desconocido</span>;
+    }
 
-  return (
-    <span className={`p-badge ${rowData.estado === 'activo' ? 'p-badge-success' : 'p-badge-danger'}`}>
-      {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
-    </span>
-  );
-};
-
+    return (
+      <span className={`p-badge ${rowData.estado === 'activo' ? 'p-badge-success' : 'p-badge-danger'}`}>
+        {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
+      </span>
+    );
+  };
 
   // Plantilla para fecha
   const dateBodyTemplate = (rowData: any) => {
-  if (!rowData || !rowData.fecha_creacion) return '-';
+    if (!rowData || !rowData.fecha_creacion) return '-';
 
-  try {
-    return new Date(rowData.fecha_creacion).toLocaleDateString('es-ES');
-  } catch (err) {
-    console.error('Fecha inválida:', rowData.fecha_creacion);
-    return '-';
-  }
-};
-
-
-
+    try {
+      return new Date(rowData.fecha_creacion).toLocaleDateString('es-ES');
+    } catch (err) {
+      console.error('Fecha inválida:', rowData.fecha_creacion);
+      return '-';
+    }
+  };
 
   // Encabezado de la tabla
   const header = (
@@ -516,9 +522,23 @@ const statusBodyTemplate = (rowData?: Usuario) => {
                   value={user.password || ''}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUser({ ...user, password: e.target.value })}
                   toggleMask
-                  feedback={false}
                   required
-                  className={classNames({ 'p-invalid': submitted && !user.password })}
+                  className={classNames({ 
+                    'p-invalid': submitted && (!user.password || !isPasswordValid(user.password))
+                  })}
+                  promptLabel="Ingresa una contraseña"
+                  weakLabel="Débil"
+                  mediumLabel="Moderada"
+                  strongLabel="Fuerte"
+                  feedback
+                  header={<div className="font-bold mb-2">Requisitos de contraseña</div>}
+                  footer={
+                    <div className="mt-2">
+                      {!isPasswordValid(user.password || '') && (
+                        <small className="p-error">La contraseña no cumple con los requisitos mínimos</small>
+                      )}
+                    </div>
+                  }
                 />
                 {submitted && !user.password && (
                   <small className="p-error">La contraseña es requerida.</small>

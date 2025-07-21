@@ -7,3 +7,52 @@
     width: auto !important;
     padding-left: 30px;
 }
+/* Estilos para el componente Password de PrimeReact */
+.p-password-panel {
+  padding: 1rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+.p-password-meter {
+  margin-bottom: 0.5rem;
+  background-color: #e9ecef;
+}
+
+.p-password-strength.weak {
+  background: #ef4444 !important; /* Rojo para débil */
+}
+
+.p-password-strength.medium {
+  background: #f59e0b !important; /* Amarillo para medio */
+}
+
+.p-password-strength.strong {
+  background: #10b981 !important; /* Verde para fuerte */
+}
+
+.p-password-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Estilos para el feedback de contraseña */
+.p-password .p-password-info {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.p-password .p-password-strength {
+  height: 4px;
+  margin-top: 0.25rem;
+}
+
+/* Estilos para mensajes de error */
+.p-error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+}
