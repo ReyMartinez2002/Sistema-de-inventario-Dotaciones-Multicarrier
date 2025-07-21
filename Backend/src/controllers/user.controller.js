@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
 const { validationResult } = require('express-validator');
 
-// Configuración de validaciones (puede moverse a un archivo aparte)
+// Configuración de validaciones
 exports.userValidations = {
   create: [
     // Validaciones para creación de usuario
@@ -41,13 +41,10 @@ exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.getAll();
     
-    // Filtrar datos sensibles de todos los usuarios
-    const safeUsers = users.map(user => formatUserResponse(user));
-    
     res.json({
       success: true,
-      count: safeUsers.length,
-      data: safeUsers
+      count: users.length,
+      data: users.map(user => formatUserResponse(user))
     });
   } catch (err) {
     handleError(res, err, 'obtener usuarios');
@@ -99,7 +96,7 @@ exports.createUser = async (req, res) => {
     }
 
     // Hash de contraseña
-    const saltRounds = 12; // Más seguro que 10
+    const saltRounds = 12;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     // Crear usuario
@@ -111,10 +108,6 @@ exports.createUser = async (req, res) => {
       id_rol, 
       estado 
     });
-
-    if (!newUser) {
-      throw new Error('No se pudo obtener el usuario creado');
-    }
 
     res.status(201).json({
       success: true,
@@ -168,33 +161,37 @@ exports.changeUserStatus = async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
 
-    // Validar que el estado sea booleano
-    if (typeof estado !== 'boolean') {
+    // Validar que el estado sea 'activo' o 'inactivo'
+    if (!['activo', 'inactivo'].includes(estado)) {
       return res.status(400).json({
         success: false,
-        message: 'El estado debe ser un valor booleano (true/false)'
+        message: 'El estado debe ser "activo" o "inactivo"'
       });
     }
 
-    // Validar que el usuario exista
-    const userExists = await User.getById(id);
-    if (!userExists) {
-      return res.status(404).json({
+    // Verificar que el usuario no sea el mismo que está haciendo la acción
+    if (req.user.id === parseInt(id)) {
+      return res.status(403).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'No puedes cambiar tu propio estado'
       });
     }
 
     // Cambiar estado
-    await User.changeStatus(id, estado);
+    const updatedUser = await User.changeStatus(id, estado);
 
     res.json({
       success: true,
-      message: `Estado del usuario cambiado a ${estado ? 'activo' : 'inactivo'}`,
-      data: { id, estado }
+      message: `Estado cambiado a ${estado}`,
+      data: updatedUser
     });
 
   } catch (err) {
-    handleError(res, err, 'cambiar estado de usuario');
+    console.error('Error en changeUserStatus:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al cambiar estado',
+      error: err.message
+    });
   }
 };

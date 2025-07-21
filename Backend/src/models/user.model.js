@@ -65,7 +65,7 @@ const UserModel = {
         throw new Error('Datos incompletos para crear usuario');
       }
 
-      const estado = data.estado || 'activo';
+      const estado = data.estado ? 'activo' : 'inactivo';
 
       // Insertar usuario
       const [result] = await connection.query(
@@ -90,7 +90,10 @@ const UserModel = {
       await connection.commit();
       logger.info(`Usuario creado: ${data.username}`, { userId: result.insertId });
 
-      return newUserRows[0];
+      return {
+        ...newUserRows[0],
+        estado: newUserRows[0].estado === 'activo' // Convertir a booleano
+      };
     } catch (error) {
       await connection.rollback();
       logger.error(`Error en create: ${error.message}`, { data });
@@ -118,7 +121,12 @@ const UserModel = {
         [id_usuario]
       );
       
-      return rows[0] || null;
+      if (!rows[0]) return null;
+      
+      return {
+        ...rows[0],
+        estado: rows[0].estado === 'activo' // Convertir a booleano
+      };
     } catch (error) {
       logger.error(`Error en findById: ${error.message}`, { id_usuario });
       throw error;
@@ -164,7 +172,10 @@ const UserModel = {
          FROM usuarios_login`
       );
       
-      return rows;
+      return rows.map(row => ({
+        ...row,
+        estado: row.estado === 'activo' // Convertir a booleano
+      }));
     } catch (error) {
       logger.error(`Error en getAll: ${error.message}`);
       throw error;
@@ -207,28 +218,34 @@ const UserModel = {
         throw new Error('Usuario no encontrado');
       }
 
+      // Convertir estado booleano a string si existe
+      const updateData = { ...data };
+      if (data.estado !== undefined) {
+        updateData.estado = data.estado ? 'activo' : 'inactivo';
+      }
+
       // Construir query dinámica
       const fieldsToUpdate = [];
       const values = [];
       
-      if (data.nombre !== undefined) {
+      if (updateData.nombre !== undefined) {
         fieldsToUpdate.push('nombre = ?');
-        values.push(data.nombre);
+        values.push(updateData.nombre);
       }
       
-      if (data.rol !== undefined) {
+      if (updateData.rol !== undefined) {
         fieldsToUpdate.push('rol = ?');
-        values.push(data.rol);
+        values.push(updateData.rol);
       }
       
-      if (data.id_rol !== undefined) {
+      if (updateData.id_rol !== undefined) {
         fieldsToUpdate.push('id_rol = ?');
-        values.push(data.id_rol);
+        values.push(updateData.id_rol);
       }
       
-      if (data.estado !== undefined) {
+      if (updateData.estado !== undefined) {
         fieldsToUpdate.push('estado = ?');
-        values.push(data.estado);
+        values.push(updateData.estado);
       }
 
       if (fieldsToUpdate.length === 0) {
@@ -263,24 +280,44 @@ const UserModel = {
   /**
    * Cambia el estado de un usuario
    * @param {number} id_usuario - ID del usuario
-   * @param {string} estado - Nuevo estado ('activo'/'inactivo')
+   * @param {boolean} estado - Nuevo estado (true/false)
    * @returns {Promise<object>} Usuario actualizado
    */
   changeStatus: async (id_usuario, estado) => {
+    const connection = await pool.getConnection();
     try {
+      await connection.beginTransaction();
+
+      // Validar que el estado sea válido
       if (!['activo', 'inactivo'].includes(estado)) {
-        throw new Error('Estado inválido');
+        throw new Error('Estado debe ser "activo" o "inactivo"');
       }
 
-      const user = await UserModel.update(id_usuario, { estado });
+      // Actualizar estado
+      const [result] = await connection.query(
+        'UPDATE usuarios_login SET estado = ?, fecha_actualizacion = NOW() WHERE id_usuario = ?',
+        [estado, id_usuario]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('No se actualizó ningún usuario');
+      }
+
+      // Obtener usuario actualizado
+      const updatedUser = await UserModel.findById(id_usuario);
+
+      await connection.commit();
       logger.info(`Estado de usuario cambiado: ${id_usuario} -> ${estado}`);
       
-      return user;
+      return updatedUser;
     } catch (error) {
+      await connection.rollback();
       logger.error(`Error en changeStatus: ${error.message}`, { id_usuario, estado });
       throw error;
-    }
+    } finally {
+      connection.release();
   }
+}
 };
 
 module.exports = UserModel;

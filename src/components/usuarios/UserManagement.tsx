@@ -51,7 +51,7 @@ const UserManagement: React.FC = () => {
   const toast = useRef<Toast>(null);
   const dt = useRef<DataTable<Usuario[]>>(null);
   const { user: currentUser } = useAuth();
-  const token = currentUser?.token;
+   const token = currentUser?.token;
   const api = new Api();
   
   // Estado para el formulario
@@ -239,15 +239,19 @@ const UserManagement: React.FC = () => {
 
   // Cambiar estado de usuario
   const changeStatus = async (user: Usuario) => {
-    // Validación del token
-    if (!token) {
-      showError('Error de autenticación', 'No se encontró el token de acceso');
-      return;
-    }
-
     try {
+      // Verificar que tenemos token
+      if (!token) {
+        throw new Error('No se encontró el token de autenticación');
+      }
+
       const newStatus = user.estado === 'activo' ? 'inactivo' : 'activo';
-      await api.users.changeStatus(user.id_usuario as number, newStatus, token);
+      
+      await api.users.changeStatus(
+        user.id_usuario as number, 
+        newStatus,
+        token // Aquí TypeScript sabe que token es string
+      );
       
       // Actualizar estado local
       setUsers(users.map(u => 
