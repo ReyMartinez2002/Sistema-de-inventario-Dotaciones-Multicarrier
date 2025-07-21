@@ -15,13 +15,21 @@ const getByRole = async (id_rol) => {
 };
 
 const create = async (data) => {
+  const estado = data.estado || 'activo';
+
   const [result] = await pool.query(
-    `INSERT INTO usuarios_login (username, password_hash, nombre, rol, id_rol, estado, fecha_creacion)
-     VALUES (?, ?, ?, ?, ?, 'activo', NOW())`,
-    [data.username, data.password_hash, data.nombre, data.rol, data.id_rol]
+    `INSERT INTO usuarios_login 
+      (username, password_hash, nombre, rol, id_rol, estado, fecha_creacion)
+     VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+    [data.username, data.password_hash, data.nombre, data.rol, data.id_rol, estado]
   );
-  return result.insertId;
+
+  const newUser = await findById(result.insertId);
+  console.log('Usuario creado:', newUser);  // <-- agrega este log para verificar qué retorna
+
+  return newUser;
 };
+
 
 const findById = async (id_usuario) => {
   const [rows] = await pool.query(

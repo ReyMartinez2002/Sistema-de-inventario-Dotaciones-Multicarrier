@@ -185,9 +185,13 @@ const saveUser = async () => {
       // Actualizar usuario existente
       const { password, confirmPassword, ...userData } = user;
       await api.users.update(user.id_usuario, userData, token);
-      
+
       // Actualizar estado local
-      setUsers(users.map(u => u.id_usuario === user.id_usuario ? user : u));
+      setUsers((prevUsers) =>
+        Array.isArray(prevUsers)
+          ? prevUsers.map(u => u.id_usuario === user.id_usuario ? user : u)
+          : [user]
+      );
       showSuccess('Usuario actualizado exitosamente');
     } else {
       // Crear nuevo usuario
@@ -202,17 +206,26 @@ const saveUser = async () => {
         },
         token
       );
-      
-      // Actualizar estado local
-      setUsers([...users, newUser.data]);
+
+      // Verificación de datos y actualización del estado local
+      const newUserData = newUser.data;
+
+      setUsers((prevUsers) =>
+        Array.isArray(prevUsers)
+          ? [...prevUsers, newUserData]
+          : [newUserData]
+      );
+
       showSuccess('Usuario creado exitosamente');
     }
-    
+
     setUserDialog(false);
   } catch (error: any) {
-    showError('Error al guardar usuario', error.message);
+    console.error('Error en saveUser:', error);
+    showError('Error al guardar usuario', error.message || 'Error inesperado');
   }
 };
+
 
   // Cambiar estado de usuario
 const changeStatus = async (user: Usuario) => {
@@ -282,18 +295,33 @@ const changeStatus = async (user: Usuario) => {
   };
 
   // Plantilla para estado
-  const statusBodyTemplate = (rowData: Usuario) => {
-    return (
-      <span className={`p-badge ${rowData.estado === 'activo' ? 'p-badge-success' : 'p-badge-danger'}`}>
-        {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
-      </span>
-    );
-  };
+const statusBodyTemplate = (rowData?: Usuario) => {
+  if (!rowData || !rowData.estado) {
+    return <span className="p-badge p-badge-secondary">Desconocido</span>;
+  }
+
+  return (
+    <span className={`p-badge ${rowData.estado === 'activo' ? 'p-badge-success' : 'p-badge-danger'}`}>
+      {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
+    </span>
+  );
+};
+
 
   // Plantilla para fecha
-  const dateBodyTemplate = (date: Date | null) => {
-    return date ? new Date(date).toLocaleDateString('es-ES') : '-';
-  };
+  const dateBodyTemplate = (rowData: any) => {
+  if (!rowData || !rowData.fecha_creacion) return '-';
+
+  try {
+    return new Date(rowData.fecha_creacion).toLocaleDateString('es-ES');
+  } catch (err) {
+    console.error('Fecha inválida:', rowData.fecha_creacion);
+    return '-';
+  }
+};
+
+
+
 
   // Encabezado de la tabla
   const header = (
@@ -367,7 +395,7 @@ const changeStatus = async (user: Usuario) => {
               <Column field="nombre" header="Nombre" sortable style={{ minWidth: '16rem' }} />
               <Column field="rol" header="Rol" sortable style={{ minWidth: '10rem' }} />
               <Column field="estado" header="Estado" body={statusBodyTemplate} sortable style={{ minWidth: '8rem' }} />
-              <Column field="fecha_creacion" header="Fecha Creación" body={(rowData) => dateBodyTemplate(rowData.fecha_creacion)} sortable style={{ minWidth: '12rem' }} />
+              <Column field="fecha_creacion"  header="Fecha Creación"  body={dateBodyTemplate}  sortable  style={{ minWidth: '12rem' }} />
               <Column field="fecha_actualizacion" header="Última Actualización" body={(rowData) => dateBodyTemplate(rowData.fecha_actualizacion)} sortable style={{ minWidth: '12rem' }} />
               <Column 
                 body={actionBodyTemplate} 

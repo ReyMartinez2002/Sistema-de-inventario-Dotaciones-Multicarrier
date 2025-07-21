@@ -5,7 +5,7 @@ export class Api {
     this.baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
   }
 
-  // Operaciones de autenticación (ya existentes)
+  // Operaciones de autenticación (igual)
   get auth() {
     return {
       login: async (username: string, password: string) => {
@@ -76,7 +76,19 @@ export class Api {
           },
           body: JSON.stringify(userData),
         });
-        if (!response.ok) throw new Error("Error al crear usuario");
+
+        if (response.status === 409) {
+          // Captura el mensaje personalizado del backend (usuario duplicado)
+          const errorData = await response.json();
+          throw new Error(errorData.message || "El nombre de usuario ya existe");
+        }
+
+        if (!response.ok) {
+          // Otros errores
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Error al crear usuario");
+        }
+
         return response.json();
       },
 

@@ -110,7 +110,7 @@ const register = async (req, res) => {
     }
     const superadminExists = await User.checkSuperadminExists();
     if (superadminExists) {
-      if (!req.usuario || req.usuario.rol !== 'superadmin') {
+      if (!req.user || req.user.rol !== 'superadmin') {
         return res.status(403).json({ error: 'Solo superadmin puede registrar nuevos usuarios.', code: 'UNAUTHORIZED_REGISTER' });
       }
       if (rol === 'superadmin') {

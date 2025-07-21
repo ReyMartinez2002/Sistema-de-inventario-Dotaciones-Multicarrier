@@ -13,18 +13,37 @@ exports.getAllUsers = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const { username, password, nombre, rol, id_rol, estado } = req.body;
-    if (!username || !password || !nombre || !rol || !estado) {
+
+    if (!username || !password || !nombre || !rol || !id_rol || !estado) {
       return res.status(400).json({ message: 'Datos obligatorios faltantes' });
     }
+
+    const existingUser = await User.findByUsername(username);
+    if (existingUser) {
+      return res.status(409).json({ message: 'El nombre de usuario ya está en uso' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
+
     const newUser = await User.create({ username, password_hash, nombre, rol, id_rol, estado });
-    delete newUser.password_hash;
-    res.status(201).json(newUser);
+
+    if (!newUser) {
+      // Si newUser es null o undefined, lanzamos error
+      throw new Error('No se pudo obtener el usuario creado.');
+    }
+
+    const userResponse = { ...newUser };
+    delete userResponse.password_hash;
+
+    res.status(201).json(userResponse);
+
   } catch (err) {
+    console.error('Error en createUser:', err);
     res.status(500).json({ message: 'Error al crear usuario', error: err.message });
   }
 };
+
 
 exports.updateUser = async (req, res) => {
   try {
