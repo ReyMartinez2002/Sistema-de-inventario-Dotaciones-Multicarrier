@@ -1,0 +1,9 @@
+.p-icon-field-right>.p-input-icon:last-of-type {
+    right: 0.8rem !important;
+    color: #6b7280;
+}
+
+.sm\:w-auto {
+    width: auto !important;
+    padding-left: 30px;
+}

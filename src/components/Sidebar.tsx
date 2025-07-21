@@ -9,6 +9,9 @@ import { Badge } from "primereact/badge";
 import { Divider } from "primereact/divider";
 import { classNames } from "primereact/utils";
 import "./styles/SidebarAdmin.css";
+import { Api } from "../services/api";
+
+const api = new Api();
 
 export interface SidebarAdminProps {
   onMenuSelect: (key: string) => void;
@@ -18,42 +21,56 @@ export interface SidebarAdminProps {
   activeItem?: string;
   onLogout?: () => void;
   avatarUrl?: string;
-  userRoleId?: number; // Nuevo prop para el id del rol del usuario
+  userRoleId?: number;
+  token?: string;
 }
 
-const SidebarAdmin: React.FC<SidebarAdminProps> = ({ 
-  onMenuSelect, 
-  user, 
+const SidebarAdmin: React.FC<SidebarAdminProps> = ({
+  onMenuSelect,
+  user,
   role = "Administrador",
   unreadNotifications = 0,
   activeItem = "",
-  onLogout = () => window.location.reload(),
   avatarUrl,
-  userRoleId = 1 // Por defecto superadmin
+  userRoleId = 1,
+  token,
+  onLogout = () => {
+    localStorage.removeItem("token");
+    window.location.reload();
+  },
 }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Función para verificar el tamaño de pantalla
+  const handleLogout = useCallback(async () => {
+    try {
+      if (token) {
+        await api.auth.logout(token);
+      }
+    } catch (error) {
+      console.error("Error en logout:", error);
+    } finally {
+      localStorage.removeItem("token");
+      onLogout();
+    }
+  }, [token, onLogout]);
+
   const checkMobile = useCallback(() => {
     const mobile = window.innerWidth <= 1024;
     setIsMobile(mobile);
     if (!mobile) setSidebarVisible(false);
   }, []);
 
-  // Efecto para detectar cambios de tamaño
   useEffect(() => {
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    
     return () => {
       window.removeEventListener("resize", checkMobile);
     };
   }, [checkMobile]);
 
-  // Efecto para cerrar al hacer clic fuera (solo móviles)
   useEffect(() => {
     if (!isMobile || !sidebarVisible) return;
 
@@ -62,258 +79,233 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
         setSidebarVisible(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMobile, sidebarVisible]);
 
-  // Generar URL de avatar
   const generatedAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user || "Admin")}&background=cd1818&color=fff&size=256&bold=true&length=2&font-size=0.5&rounded=true`;
 
-  // Manejar clic en menú
-  const handleMenuClick = useCallback((key: string) => {
-    onMenuSelect(key);
-    if (isMobile) setSidebarVisible(false);
-  }, [isMobile, onMenuSelect]);
+  const handleMenuClick = useCallback(
+    (key: string) => {
+      onMenuSelect(key);
+      if (isMobile) setSidebarVisible(false);
+    },
+    [isMobile, onMenuSelect]
+  );
 
-  // Items base del menú
   const baseMenuItems: MenuItem[] = [
     {
       label: collapsed ? "" : "Dashboard",
       icon: "pi pi-chart-line",
       command: () => handleMenuClick("dashboard"),
       className: classNames({
-        'active-menu-item': activeItem === 'dashboard',
-        'collapsed-menu-item': collapsed
+        "active-menu-item": activeItem === "dashboard",
+        "collapsed-menu-item": collapsed,
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'dashboard' && (
-            <div className="active-indicator" />
-          )}
+          {!collapsed && activeItem === "dashboard" && <div className="active-indicator" />}
         </div>
-      )
+      ),
     },
     {
       label: collapsed ? "" : "Dotaciones",
       icon: "pi pi-briefcase",
-      expanded: !collapsed && activeItem.includes('dotacion'),
+      expanded: !collapsed && activeItem.includes("dotacion"),
       className: classNames({
-        'active-parent': activeItem.includes('dotacion'),
-        'collapsed-menu-item': collapsed
+        "active-parent": activeItem.includes("dotacion"),
+        "collapsed-menu-item": collapsed,
       }),
       items: [
         {
           label: "Registrar Nueva",
           icon: "pi pi-plus-circle",
           command: () => handleMenuClick("registrar-nueva"),
-          className: activeItem === 'registrar-nueva' ? 'active-submenu-item' : ''
+          className: activeItem === "registrar-nueva" ? "active-submenu-item" : "",
         },
         {
           label: "Reutilizadas",
           icon: "pi pi-refresh",
           command: () => handleMenuClick("registrar-reutilizada"),
-          className: activeItem === 'registrar-reutilizada' ? 'active-submenu-item' : ''
+          className: activeItem === "registrar-reutilizada" ? "active-submenu-item" : "",
         },
         {
           label: "Asignar",
           icon: "pi pi-user-plus",
           command: () => handleMenuClick("asignar-dotacion"),
-          className: activeItem === 'asignar-dotacion' ? 'active-submenu-item' : ''
+          className: activeItem === "asignar-dotacion" ? "active-submenu-item" : "",
         },
         {
           label: "Historial",
           icon: "pi pi-clock",
           command: () => handleMenuClick("historial-asignaciones"),
-          className: activeItem === 'historial-asignaciones' ? 'active-submenu-item' : ''
+          className: activeItem === "historial-asignaciones" ? "active-submenu-item" : "",
         },
         {
           label: "Devoluciones",
           icon: "pi pi-undo",
           command: () => handleMenuClick("devoluciones"),
-          className: activeItem === 'devoluciones' ? 'active-submenu-item' : ''
+          className: activeItem === "devoluciones" ? "active-submenu-item" : "",
         },
         {
           label: "Consulta Stock",
           icon: "pi pi-search",
           command: () => handleMenuClick("consulta-stock"),
-          className: activeItem === 'consulta-stock' ? 'active-submenu-item' : ''
+          className: activeItem === "consulta-stock" ? "active-submenu-item" : "",
         },
         {
           label: "Reportes",
           icon: "pi pi-file-pdf",
           command: () => handleMenuClick("reportes-dotaciones"),
-          className: activeItem === 'reportes-dotaciones' ? 'active-submenu-item' : ''
+          className: activeItem === "reportes-dotaciones" ? "active-submenu-item" : "",
         },
         {
           label: "Tipos",
           icon: "pi pi-tags",
           command: () => handleMenuClick("gestionar-tipos-dotacion"),
-          className: activeItem === 'gestionar-tipos-dotacion' ? 'active-submenu-item' : ''
-        }
+          className: activeItem === "gestionar-tipos-dotacion" ? "active-submenu-item" : "",
+        },
       ],
-      
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem.includes('dotacion') && (
-            <div className="active-indicator" />
-          )}
+          {!collapsed && activeItem.includes("dotacion") && <div className="active-indicator" />}
           {!collapsed && (
-            <i className={`pi pi-chevron-${item.expanded ? 'down' : 'right'}`} />
+            <i className={`pi pi-chevron-${item.expanded ? "down" : "right"}`} />
           )}
         </div>
-      )
-    }
+      ),
+    },
   ];
 
-  // Items de administración (solo para roles con permisos)
-  const adminMenuItems: MenuItem[] = userRoleId === 1 ? [
-    {
-      label: collapsed ? "" : "Usuarios",
-      icon: "pi pi-users",
-      expanded: !collapsed && activeItem.includes('usuarios'),
-      className: classNames({
-        'active-parent': activeItem.includes('usuarios'),
-        'collapsed-menu-item': collapsed
-      }),
-      items: [
-        {
-          label: "Registrar Usuario",
-          icon: "pi pi-user-plus",
-          command: () => handleMenuClick("registrar-usuario"),
-          className: activeItem === 'registrar-usuario' ? 'active-submenu-item' : ''
-        },
-        {
-          label: "Lista de Usuarios",
-          icon: "pi pi-list",
-          command: () => handleMenuClick("lista-usuarios"),
-          className: activeItem === 'lista-usuarios' ? 'active-submenu-item' : ''
-        },
-        {
-          label: "Roles y Permisos",
-          icon: "pi pi-shield",
-          command: () => handleMenuClick("roles-permisos"),
-          className: activeItem === 'roles-permisos' ? 'active-submenu-item' : ''
-        },
-        {
-          label: "Historial de Accesos",
-          icon: "pi pi-history",
-          command: () => handleMenuClick("historial-accesos"),
-          className: activeItem === 'historial-accesos' ? 'active-submenu-item' : ''
-        }
-      ],
-      template: (item) => (
-        <div className="menu-item-content">
-          <i className={item.icon} />
-          {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem.includes('usuarios') && (
-            <div className="active-indicator" />
-          )}
-          {!collapsed && (
-            <i className={`pi pi-chevron-${item.expanded ? 'down' : 'right'}`} />
-          )}
-        </div>
-      )
-    }
-  ] : [];
+  const adminMenuItems: MenuItem[] =
+    userRoleId === 1
+      ? [
+          {
+            label: collapsed ? "" : "Usuarios",
+            icon: "pi pi-users",
+            expanded: !collapsed && activeItem.includes("usuarios"),
+            className: classNames({
+              "active-parent": activeItem.includes("usuarios"),
+              "collapsed-menu-item": collapsed,
+            }),
+            items: [
+              {
+                label: "Registrar Usuario",
+                icon: "pi pi-user-plus",
+                command: () => handleMenuClick("registrar-usuario"),
+                className: activeItem === "registrar-usuario" ? "active-submenu-item" : "",
+              },
+              {
+                label: "Roles y Permisos",
+                icon: "pi pi-shield",
+                command: () => handleMenuClick("roles-permisos"),
+                className: activeItem === "roles-permisos" ? "active-submenu-item" : "",
+              },
+              {
+                label: "Historial de Accesos",
+                icon: "pi pi-history",
+                command: () => handleMenuClick("historial-accesos"),
+                className: activeItem === "historial-accesos" ? "active-submenu-item" : "",
+              },
+            ],
+            template: (item) => (
+              <div className="menu-item-content">
+                <i className={item.icon} />
+                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && activeItem.includes("usuarios") && <div className="active-indicator" />}
+                {!collapsed && (
+                  <i className={`pi pi-chevron-${item.expanded ? "down" : "right"}`} />
+                )}
+              </div>
+            ),
+          },
+        ]
+      : [];
 
-  // Items comunes del menú
   const commonMenuItems: MenuItem[] = [
     {
       label: collapsed ? "" : "Perfil",
       icon: "pi pi-user",
       command: () => handleMenuClick("perfil"),
       className: classNames({
-        'active-menu-item': activeItem === 'perfil',
-        'collapsed-menu-item': collapsed
+        "active-menu-item": activeItem === "perfil",
+        "collapsed-menu-item": collapsed,
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'perfil' && (
-            <div className="active-indicator" />
-          )}
+          {!collapsed && activeItem === "perfil" && <div className="active-indicator" />}
         </div>
-      )
+      ),
     },
     {
       label: collapsed ? "" : "Notificaciones",
       icon: "pi pi-bell",
       command: () => handleMenuClick("notificaciones"),
       className: classNames({
-        'active-menu-item': activeItem === 'notificaciones',
-        'collapsed-menu-item': collapsed
+        "active-menu-item": activeItem === "notificaciones",
+        "collapsed-menu-item": collapsed,
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
           {unreadNotifications > 0 && (
-            <Badge 
-              value={unreadNotifications} 
-              severity="danger" 
-              className="notification-badge"
-            />
+            <Badge value={unreadNotifications} severity="danger" className="notification-badge" />
           )}
-          {!collapsed && activeItem === 'notificaciones' && (
-            <div className="active-indicator" />
-          )}
+          {!collapsed && activeItem === "notificaciones" && <div className="active-indicator" />}
         </div>
-      )
+      ),
     },
     {
       label: collapsed ? "" : "Ajustes",
       icon: "pi pi-cog",
       command: () => handleMenuClick("ajustes"),
       className: classNames({
-        'active-menu-item': activeItem === 'ajustes',
-        'collapsed-menu-item': collapsed
+        "active-menu-item": activeItem === "ajustes",
+        "collapsed-menu-item": collapsed,
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
-          {!collapsed && activeItem === 'ajustes' && (
-            <div className="active-indicator" />
-          )}
+          {!collapsed && activeItem === "ajustes" && <div className="active-indicator" />}
         </div>
-      )
+      ),
     },
     {
       separator: true,
-      visible: !collapsed
+      visible: !collapsed,
     },
     {
       label: collapsed ? "" : "Cerrar sesión",
       icon: "pi pi-sign-out",
-      command: () => onLogout(),
-      className: classNames('logout-menu-item', {
-        'collapsed-menu-item': collapsed
+      command: () => handleLogout(),
+      className: classNames("logout-menu-item", {
+        "collapsed-menu-item": collapsed,
       }),
       template: (item) => (
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
         </div>
-      )
-    }
+      ),
+    },
   ];
 
-  // Combinar todos los items del menú
   const menuItems = [...baseMenuItems, ...adminMenuItems, ...commonMenuItems];
 
   return (
     <>
       <Tooltip target=".custom-sidebar-toggle" position="right" />
       <Tooltip target=".collapsed-menu-item" position="right" />
-      
       {isMobile && (
         <Button
           icon="pi pi-bars"
@@ -324,13 +316,12 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
             top: 20,
             left: 20,
             zIndex: 1101,
-            boxShadow: "0 2px 12px rgba(205, 24, 24, 0.3)"
+            boxShadow: "0 2px 12px rgba(205, 24, 24, 0.3)",
           }}
           onClick={() => setSidebarVisible(true)}
           aria-label="Mostrar menú"
         />
       )}
-      
       {isMobile ? (
         <Sidebar
           visible={sidebarVisible}
@@ -341,7 +332,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           dismissable
           blockScroll
         >
-          <SidebarContent 
+          <SidebarContent
             user={user}
             role={role}
             avatarUrl={avatarUrl || generatedAvatarUrl}
@@ -352,10 +343,13 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           />
         </Sidebar>
       ) : (
-        <aside className={classNames("fixed-sidebar custom-sidebar desktop-sidebar", {
-          'collapsed': collapsed
-        })} ref={sidebarRef}>
-          <SidebarContent 
+        <aside
+          className={classNames("fixed-sidebar custom-sidebar desktop-sidebar", {
+            collapsed: collapsed,
+          })}
+          ref={sidebarRef}
+        >
+          <SidebarContent
             user={user}
             role={role}
             avatarUrl={avatarUrl || generatedAvatarUrl}
@@ -369,14 +363,17 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
   );
 };
 
-const SidebarContent = React.forwardRef<HTMLDivElement, {
-  user: string;
-  role: string;
-  avatarUrl: string;
-  panelMenuItems: MenuItem[];
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-}>(({ user, role, avatarUrl, panelMenuItems, collapsed, onToggleCollapse }, ref) => (
+const SidebarContent = React.forwardRef<
+  HTMLDivElement,
+  {
+    user: string;
+    role: string;
+    avatarUrl: string;
+    panelMenuItems: MenuItem[];
+    collapsed: boolean;
+    onToggleCollapse: () => void;
+  }
+>(({ user, role, avatarUrl, panelMenuItems, collapsed, onToggleCollapse }, ref) => (
   <div className="sidebar-content-wrapper" ref={ref}>
     <div className="sidebar-header">
       <Avatar
@@ -387,7 +384,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, {
         style={{
           width: collapsed ? 48 : 64,
           height: collapsed ? 48 : 64,
-          transition: 'all 0.3s ease'
+          transition: "all 0.3s ease",
         }}
       />
       {!collapsed && (
@@ -398,9 +395,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, {
         </>
       )}
     </div>
-    
     <Divider className="sidebar-divider" />
-    
     <div className="sidebar-menu-scrollable custom-panelmenu">
       <PanelMenu
         model={panelMenuItems}
@@ -412,14 +407,13 @@ const SidebarContent = React.forwardRef<HTMLDivElement, {
         multiple={false}
       />
     </div>
-    
     <div className="sidebar-footer">
-      <Button 
-        icon={`pi pi-chevron-${collapsed ? 'right' : 'left'}`}
+      <Button
+        icon={`pi pi-chevron-${collapsed ? "right" : "left"}`}
         className="p-button-rounded p-button-text p-button-sm toggle-collapse-btn"
         onClick={onToggleCollapse}
         tooltip={collapsed ? "Expandir menú" : "Colapsar menú"}
-        tooltipOptions={{ position: 'right' }}
+        tooltipOptions={{ position: "right" }}
       />
       {!collapsed && (
         <>

@@ -135,36 +135,38 @@ const register = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    const token = req.headers['authorization']?.split(' ')[1];
-    const decoded = jwt.decode(token);
-    // registrar logout e invalidar token si tienes funciones en tu modelo
+    // Aquí podrías implementar blacklist de tokens si lo necesitas realmente
     res.status(200).json({
       success: true,
       message: 'Sesión cerrada correctamente',
       logoutId: uuidv4(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error en logout:', error);
-    res.status(500).json({ error: 'Error al cerrar sesión', code: 'LOGOUT_ERROR', details: process.env.NODE_ENV === 'development' ? error.message : undefined, timestamp: new Date().toISOString() });
+    res.status(500).json({
+      error: 'Error al cerrar sesión',
+      code: 'LOGOUT_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      timestamp: new Date().toISOString(),
+    });
   }
 };
+
 const validateToken = async (req, res) => {
   try {
-    // Si authenticateToken pasó, req.usuario ya está disponible
     res.status(200).json({
       id_usuario: req.usuario.id_usuario,
       username: req.usuario.username,
       nombre: req.usuario.nombre,
       rol: req.usuario.rol,
       id_rol: req.usuario.id_rol,
-      email: req.usuario.email || req.usuario.username // Si tienes email en el payload
+      email: req.usuario.email || req.usuario.username,
     });
   } catch (error) {
     res.status(500).json({ error: 'Error validando token.' });
   }
 };
-
 // Puedes agregar otros controladores como getUsuarios, validateToken si necesitas
 
 module.exports = {

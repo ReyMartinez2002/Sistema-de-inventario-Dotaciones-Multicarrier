@@ -14,10 +14,9 @@ import Perfil from "../components/Perfil";
 import Ajustes from "../components/Ajustes";
 import Notificaciones from "../components/Notificaciones";
 import { Navigate } from "react-router-dom";
-import RegistrarUsuario from "../components/usuarios/RegistrarUsuario";
-import ListaUsuarios from "../components/usuarios/ListaUsuarios";
 import RolesPermisos from "../components/usuarios/RolesPermisos";
 import HistorialAccesos from "../components/usuarios/HistorialAccesos";
+import UserManagement from "../components/usuarios/UserManagement";
 
 const HomeAdmin: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -59,9 +58,7 @@ const HomeAdmin: React.FC = () => {
     case "ajustes":
       return <Ajustes />;
     case "registrar-usuario":
-      return <RegistrarUsuario />;
-    case "lista-usuarios":
-      return <ListaUsuarios />;
+      return <UserManagement />;
     case "roles-permisos":
       return <RolesPermisos />;
     case "historial-accesos":

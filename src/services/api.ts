@@ -1,6 +1,6 @@
 export class Api {
   private baseUrl: string;
-  
+
   constructor() {
     this.baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
   }
@@ -13,7 +13,7 @@ export class Api {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
         });
-        
+
         if (!response.ok) throw new Error(await response.text());
         return response.json();
       },
@@ -21,19 +21,20 @@ export class Api {
       logout: async (token: string) => {
         const response = await fetch(`${this.baseUrl}/auth/logout`, {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}` 
+            Authorization: `Bearer ${token}`,
           },
         });
         if (!response.ok) throw new Error("Error al cerrar sesión");
+        return response.json();
       },
 
       validateToken: async (token: string) => {
         const response = await fetch(`${this.baseUrl}/auth/validate`, {
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}` 
+            Authorization: `Bearer ${token}`,
           },
         });
         if (!response.ok) throw new Error("Token inválido o expirado");
