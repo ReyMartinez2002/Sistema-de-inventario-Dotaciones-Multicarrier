@@ -51,7 +51,7 @@ const UserManagement: React.FC = () => {
   const toast = useRef<Toast>(null);
   const dt = useRef<DataTable<Usuario[]>>(null);
   const { user: currentUser } = useAuth();
-   const token = currentUser?.token;
+  const token = currentUser?.token;
   const api = new Api();
   
   // Estado para el formulario
@@ -193,10 +193,6 @@ const UserManagement: React.FC = () => {
 
     try {
       if (user.id_usuario) {
-        // Actualizar usuario existente
-        const { password, confirmPassword, ...userData } = user;
-        await api.users.update(user.id_usuario, userData, token);
-
         // Actualizar estado local
         setUsers((prevUsers) =>
           Array.isArray(prevUsers)
@@ -250,7 +246,7 @@ const UserManagement: React.FC = () => {
       await api.users.changeStatus(
         user.id_usuario as number, 
         newStatus,
-        token // Aquí TypeScript sabe que token es string
+        token
       );
       
       // Actualizar estado local
@@ -285,12 +281,13 @@ const UserManagement: React.FC = () => {
     }
 
     return (
-      <div className="flex gap-2">
+      <div className="flex gap-2 justify-content-center align-items-center" style={{ height: '100%' }}>
         <Button 
           icon="pi pi-pencil" 
           rounded 
-          severity="success" 
-          className="p-button-sm" 
+          outlined
+          severity="secondary" 
+          className="p-button-sm action-button" 
           onClick={() => editUser(rowData)} 
           tooltip="Editar"
           tooltipOptions={{ position: 'top' }}
@@ -298,8 +295,9 @@ const UserManagement: React.FC = () => {
         <Button 
           icon={rowData.estado === 'activo' ? 'pi pi-ban' : 'pi pi-check'} 
           rounded 
-          severity={rowData.estado === 'activo' ? 'warning' : 'info'} 
-          className="p-button-sm" 
+          outlined
+          severity={rowData.estado === 'activo' ? 'warning' : 'success'} 
+          className="p-button-sm action-button" 
           onClick={() => confirmDelete(rowData)}
           tooltip={rowData.estado === 'activo' ? 'Desactivar' : 'Activar'}
           tooltipOptions={{ position: 'top' }}
@@ -315,20 +313,20 @@ const UserManagement: React.FC = () => {
     }
 
     return (
-      <span className={`p-badge ${rowData.estado === 'activo' ? 'p-badge-success' : 'p-badge-danger'}`}>
+      <span className={`p-tag ${rowData.estado === 'activo' ? 'p-tag-success' : 'p-tag-danger'}`}>
         {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
       </span>
     );
   };
 
   // Plantilla para fecha
-  const dateBodyTemplate = (rowData: any) => {
+  const dateBodyTemplate = (rowData: { fecha_creacion?: string }) => {
     if (!rowData || !rowData.fecha_creacion) return '-';
 
     try {
       return new Date(rowData.fecha_creacion).toLocaleDateString('es-ES');
     } catch (err) {
-      console.error('Fecha inválida:', rowData.fecha_creacion);
+      console.error('Fecha inválida:', rowData.fecha_creacion , err);
       return '-';
     }
   };
@@ -336,14 +334,14 @@ const UserManagement: React.FC = () => {
   // Encabezado de la tabla
   const header = (
     <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
-      <h2 className="m-0">Gestión de Usuarios</h2>
-      <span className="p-input-icon-left">
+      <h2 className="m-0 text-2xl font-bold">Gestión de Usuarios</h2>
+      <span className="p-input-icon-left w-full md:w-auto">
         <i className="pi pi-search" />
         <InputText 
           type="search" 
           onInput={(e: React.FormEvent<HTMLInputElement>) => setGlobalFilter(e.currentTarget.value)} 
-          placeholder="Buscar..." 
-          className="w-full sm:w-auto"
+          placeholder="Buscar usuarios..." 
+          className="w-full input-Buscar"
         />
       </span>
     </div>
@@ -356,7 +354,8 @@ const UserManagement: React.FC = () => {
         <Button 
           label="Nuevo Usuario" 
           icon="pi pi-plus" 
-          severity="success" 
+          severity="success"
+          outlined
           onClick={openNew} 
           className="p-button-sm"
           disabled={currentUser?.rol !== 'superadmin'}
@@ -367,10 +366,10 @@ const UserManagement: React.FC = () => {
 
   // Pie de página del diálogo
   const userDialogFooter = (
-    <>
-      <Button label="Cancelar" icon="pi pi-times" text onClick={hideDialog} />
-      <Button label="Guardar" icon="pi pi-check" text onClick={saveUser} />
-    </>
+    <div className="flex justify-content-end gap-2">
+      <Button label="Cancelar" icon="pi pi-times" outlined onClick={hideDialog} />
+      <Button label="Guardar" icon="pi pi-check" onClick={saveUser} />
+    </div>
   );
 
   return (
@@ -383,7 +382,7 @@ const UserManagement: React.FC = () => {
 
       <div className="grid">
         <div className="col-12">
-          <Card>
+          <Card className="shadow-2">
             <Toolbar className="mb-4" left={leftToolbarTemplate}></Toolbar>
 
             <DataTable
@@ -400,18 +399,41 @@ const UserManagement: React.FC = () => {
               responsiveLayout="scroll"
               emptyMessage="No se encontraron usuarios."
               loading={loading}
+              className="p-datatable-sm"
+              rowHover
+              stripedRows
             >
               <Column field="username" header="Usuario" sortable style={{ minWidth: '12rem' }} />
               <Column field="nombre" header="Nombre" sortable style={{ minWidth: '16rem' }} />
               <Column field="rol" header="Rol" sortable style={{ minWidth: '10rem' }} />
-              <Column field="estado" header="Estado" body={statusBodyTemplate} sortable style={{ minWidth: '8rem' }} />
-              <Column field="fecha_creacion"  header="Fecha Creación"  body={dateBodyTemplate}  sortable  style={{ minWidth: '12rem' }} />
-              <Column field="fecha_actualizacion" header="Última Actualización" body={(rowData) => dateBodyTemplate(rowData.fecha_actualizacion)} sortable style={{ minWidth: '12rem' }} />
+              <Column 
+                field="estado" 
+                header="Estado" 
+                body={statusBodyTemplate} 
+                sortable 
+                style={{ minWidth: '8rem' }} 
+                bodyClassName="text-center"
+              />
+              <Column 
+                field="fecha_creacion"  
+                header="Fecha Creación"  
+                body={dateBodyTemplate}  
+                sortable  
+                style={{ minWidth: '12rem' }} 
+              />
+              <Column 
+                field="fecha_actualizacion" 
+                header="Última Actualización" 
+                body={(rowData) => dateBodyTemplate(rowData.fecha_actualizacion)} 
+                sortable 
+                style={{ minWidth: '12rem' }} 
+              />
               <Column 
                 body={actionBodyTemplate} 
                 exportable={false} 
-                style={{ minWidth: '8rem' }}
+                style={{ minWidth: '10rem', textAlign: 'center', justifyContent: 'center', marginBottom:"50px",  }}
                 header="Acciones"
+                bodyClassName="text-center"
               />
             </DataTable>
           </Card>
@@ -427,6 +449,7 @@ const UserManagement: React.FC = () => {
         className="p-fluid" 
         footer={userDialogFooter} 
         onHide={hideDialog}
+        breakpoints={{ '960px': '75vw', '640px': '90vw' }}
       >
         <div className="grid formgrid p-fluid">
           <div className="field col-12">
@@ -574,7 +597,7 @@ const UserManagement: React.FC = () => {
         </div>
       </Dialog>
 
-      <Toast ref={toast} />
+      <Toast ref={toast} position="top-right" />
       <ConfirmDialog />
     </>
   );

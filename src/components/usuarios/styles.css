@@ -1,13 +1,66 @@
-.p-icon-field-right>.p-input-icon:last-of-type {
-    right: 0.8rem !important;
-    color: #6b7280;
+/* styles.css */
+.p-datatable .p-datatable-thead > tr > th {
+  background-color: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+.input-Buscar {
+  padding-left: 30px;
+}
+#confirmPassword > div > span, #password > div > span {
+  right: 1rem !important;
 }
 
-.sm\:w-auto {
-    width: auto !important;
-    padding-left: 30px;
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
 }
-/* Estilos para el componente Password de PrimeReact */
+
+.action-button {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p-tag {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.p-tag-success {
+  background-color: #10b981;
+  color: white;
+}
+
+.p-tag-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.p-card {
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.p-dialog .p-dialog-header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.p-dialog .p-dialog-footer {
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+}
+
+.p-inputtext {
+  width: 100%;
+}
+
 .p-password-panel {
   padding: 1rem;
   background: #ffffff;
@@ -22,15 +75,15 @@
 }
 
 .p-password-strength.weak {
-  background: #ef4444 !important; /* Rojo para débil */
+  background: #ef4444 !important;
 }
 
 .p-password-strength.medium {
-  background: #f59e0b !important; /* Amarillo para medio */
+  background: #f59e0b !important;
 }
 
 .p-password-strength.strong {
-  background: #10b981 !important; /* Verde para fuerte */
+  background: #10b981 !important;
 }
 
 .p-password-info {
@@ -38,21 +91,23 @@
   color: #6b7280;
 }
 
-/* Estilos para el feedback de contraseña */
-.p-password .p-password-info {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-}
-
-.p-password .p-password-strength {
-  height: 4px;
-  margin-top: 0.25rem;
-}
-
-/* Estilos para mensajes de error */
 .p-error {
   color: #ef4444;
   font-size: 0.75rem;
   margin-top: 0.25rem;
   display: block;
+}
+
+.p-datatable.p-datatable-sm .p-datatable-tbody > tr > td {
+  padding: 0.5rem 1rem;
+}
+
+.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.p-datatable .p-column-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
