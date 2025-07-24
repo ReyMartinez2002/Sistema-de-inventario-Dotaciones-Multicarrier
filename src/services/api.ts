@@ -48,23 +48,24 @@ export class Api {
   get users() {
     return {
       getAll: async (token: string) => {
-        const response = await fetch(`${this.baseUrl}/users`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) throw new Error("Error al obtener usuarios");
-        const data = await response.json();
-        
-        // Convertir estados string a booleanos
-        return {
-          ...data,
-          data: data.data?.map((user: any) => ({
-            ...user,
-            estado: user.estado === 'activo'
-          })) || []
-        };
-      },
+  const response = await fetch(`${this.baseUrl}/users`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) throw new Error("Error al obtener usuarios");
+  const data = await response.json();
+  
+  // Asegurar que el estado sea string
+  return {
+    ...data,
+    data: data.data?.map((user: any) => ({
+      ...user,
+      estado: String(user.estado) // Forzar conversión a string
+    })) || []
+  };
+},
 
       getById: async (id: number, token: string) => {
         const response = await fetch(`${this.baseUrl}/users/${id}`, {
@@ -124,36 +125,22 @@ export class Api {
       },
 
       update: async (id: number, userData: any, token: string) => {
-        // Convertir estado booleano a string para el backend
-        const payload = {
-          ...userData,
-          ...(userData.estado !== undefined && { 
-            estado: userData.estado ? 'activo' : 'inactivo' 
-          })
-        };
-
-        const response = await fetch(`${this.baseUrl}/users/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        
-        if (!response.ok) throw new Error("Error al actualizar usuario");
-        
-        const data = await response.json();
-        
-        // Convertir estado string a booleano en la respuesta
-        return {
-          ...data,
-          data: {
-            ...data.data,
-            estado: data.data?.estado === 'activo'
-          }
-        };
-      },
+  const response = await fetch(`${this.baseUrl}/users/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Error al actualizar usuario");
+  }
+  
+  return response.json();
+},
 
       delete: async (id: number, token: string) => {
         const response = await fetch(`${this.baseUrl}/users/${id}`, {
@@ -167,37 +154,22 @@ export class Api {
       },
 
      changeStatus: async (id: number, status: 'activo' | 'inactivo', token: string) => {
-        try {
-          // Validación en el frontend
-          if (!['activo', 'inactivo'].includes(status)) {
-            throw new Error('El estado debe ser "activo" o "inactivo"');
-          }
+  const response = await fetch(`${this.baseUrl}/users/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ estado: status }),
+  });
 
-          const response = await fetch(`${this.baseUrl}/users/${id}/status`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ estado: status }),
-          });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Error al cambiar estado");
+  }
 
-          if (response.status === 403) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'No tienes permiso para esta acción');
-          }
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || "Error al cambiar estado");
-          }
-
-          return response.json();
-        } catch (error) {
-          console.error('Error en changeStatus:', error);
-          throw error;
-        }
-      }
+  return response.json();
+}
     }
   }
 }

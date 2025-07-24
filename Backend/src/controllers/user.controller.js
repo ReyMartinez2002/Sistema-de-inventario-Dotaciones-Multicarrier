@@ -135,24 +135,42 @@ exports.updateUser = async (req, res) => {
     }
 
     // Validar datos de entrada
-    if (!nombre && !rol && !id_rol && estado === undefined) {
+    if (!nombre && !rol && !id_rol && !estado) {
       return res.status(400).json({
         success: false,
         message: 'Debe proporcionar al menos un campo para actualizar'
       });
     }
 
+    // Validar que el estado sea correcto si viene en la solicitud
+    if (estado && !['activo', 'inactivo'].includes(estado)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El estado debe ser "activo" o "inactivo"'
+      });
+    }
+
     // Actualizar usuario
-    const updatedUser = await User.update(id, { nombre, rol, id_rol, estado });
+    const updatedUser = await User.update(id, { 
+      nombre, 
+      rol, 
+      id_rol, 
+      estado 
+    });
 
     res.json({
       success: true,
       message: 'Usuario actualizado exitosamente',
-      data: formatUserResponse(updatedUser)
+      data: updatedUser
     });
 
   } catch (err) {
-    handleError(res, err, 'actualizar usuario');
+    console.error('Error en updateUser:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar usuario',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno'
+    });
   }
 };
 

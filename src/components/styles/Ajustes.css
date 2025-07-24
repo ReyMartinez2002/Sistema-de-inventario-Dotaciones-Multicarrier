@@ -56,3 +56,6 @@
 .p-button-rounded {
     left: 1.5rem !important;
 }
+#currentPass > div > span, #newPass > div > span, #confirmPass > div > span {
+  right: 1rem;
+}

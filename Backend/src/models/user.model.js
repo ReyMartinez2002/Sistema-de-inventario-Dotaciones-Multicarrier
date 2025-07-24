@@ -166,21 +166,19 @@ const UserModel = {
    * @returns {Promise<array>} Lista de usuarios
    */
   getAll: async () => {
-    try {
-      const [rows] = await pool.query(
-        `SELECT id_usuario, username, nombre, rol, id_rol, estado, fecha_creacion
-         FROM usuarios_login`
-      );
-      
-      return rows.map(row => ({
-        ...row,
-        estado: row.estado === 'activo' // Convertir a booleano
-      }));
-    } catch (error) {
-      logger.error(`Error en getAll: ${error.message}`);
-      throw error;
-    }
-  },
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_usuario, username, nombre, rol, id_rol, 
+       CAST(estado AS CHAR) as estado, fecha_creacion
+       FROM usuarios_login`
+    );
+    
+    return rows;
+  } catch (error) {
+    logger.error(`Error en getAll: ${error.message}`);
+    throw error;
+  }
+},
 
   /**
    * Verifica si existe al menos un superadmin
@@ -218,40 +216,41 @@ const UserModel = {
         throw new Error('Usuario no encontrado');
       }
 
-      // Convertir estado booleano a string si existe
-      const updateData = { ...data };
-      if (data.estado !== undefined) {
-        updateData.estado = data.estado ? 'activo' : 'inactivo';
-      }
-
       // Construir query dinámica
       const fieldsToUpdate = [];
       const values = [];
       
-      if (updateData.nombre !== undefined) {
+      if (data.nombre !== undefined) {
         fieldsToUpdate.push('nombre = ?');
-        values.push(updateData.nombre);
+        values.push(data.nombre);
       }
       
-      if (updateData.rol !== undefined) {
+      if (data.rol !== undefined) {
         fieldsToUpdate.push('rol = ?');
-        values.push(updateData.rol);
+        values.push(data.rol);
       }
       
-      if (updateData.id_rol !== undefined) {
+      if (data.id_rol !== undefined) {
         fieldsToUpdate.push('id_rol = ?');
-        values.push(updateData.id_rol);
+        values.push(data.id_rol);
       }
       
-      if (updateData.estado !== undefined) {
+      if (data.estado !== undefined) {
+        // Validar que el estado sea correcto
+        if (!['activo', 'inactivo'].includes(data.estado)) {
+          throw new Error('Estado debe ser "activo" o "inactivo"');
+        }
         fieldsToUpdate.push('estado = ?');
-        values.push(updateData.estado);
+        values.push(data.estado);
       }
 
       if (fieldsToUpdate.length === 0) {
         throw new Error('No hay campos para actualizar');
       }
 
+      // Siempre actualizar la fecha de actualización
+      fieldsToUpdate.push('fecha_actualizacion = NOW()');
+      
       values.push(id_usuario);
 
       const query = `
@@ -262,12 +261,22 @@ const UserModel = {
       await connection.query(query, values);
 
       // Obtener usuario actualizado
-      const updatedUser = await UserModel.findById(id_usuario);
+      const [updatedUserRows] = await connection.query(
+        `SELECT id_usuario, username, nombre, rol, id_rol, estado, 
+                fecha_creacion, fecha_actualizacion
+         FROM usuarios_login 
+         WHERE id_usuario = ? LIMIT 1`,
+        [id_usuario]
+      );
+      
+      if (!updatedUserRows[0]) {
+        throw new Error('No se pudo recuperar el usuario actualizado');
+      }
 
       await connection.commit();
       logger.info(`Usuario actualizado: ${id_usuario}`);
 
-      return updatedUser;
+      return updatedUserRows[0];
     } catch (error) {
       await connection.rollback();
       logger.error(`Error en update: ${error.message}`, { id_usuario, data });
@@ -275,6 +284,7 @@ const UserModel = {
     } finally {
       connection.release();
     }
+    
   },
 
   /**
@@ -295,7 +305,9 @@ const UserModel = {
 
       // Actualizar estado
       const [result] = await connection.query(
-        'UPDATE usuarios_login SET estado = ?, fecha_actualizacion = NOW() WHERE id_usuario = ?',
+        `UPDATE usuarios_login 
+         SET estado = ?, fecha_actualizacion = NOW() 
+         WHERE id_usuario = ?`,
         [estado, id_usuario]
       );
 
@@ -304,20 +316,30 @@ const UserModel = {
       }
 
       // Obtener usuario actualizado
-      const updatedUser = await UserModel.findById(id_usuario);
+      const [updatedUserRows] = await connection.query(
+        `SELECT id_usuario, username, nombre, rol, id_rol, estado, 
+                fecha_creacion, fecha_actualizacion
+         FROM usuarios_login 
+         WHERE id_usuario = ? LIMIT 1`,
+        [id_usuario]
+      );
+
+      if (!updatedUserRows[0]) {
+        throw new Error('No se pudo recuperar el usuario actualizado');
+      }
 
       await connection.commit();
       logger.info(`Estado de usuario cambiado: ${id_usuario} -> ${estado}`);
       
-      return updatedUser;
+      return updatedUserRows[0];
     } catch (error) {
       await connection.rollback();
       logger.error(`Error en changeStatus: ${error.message}`, { id_usuario, estado });
       throw error;
     } finally {
       connection.release();
+    }
   }
-}
 };
 
 module.exports = UserModel;

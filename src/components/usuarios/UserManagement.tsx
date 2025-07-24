@@ -23,10 +23,7 @@ type Rol = {
   id: number;
 };
 
-type Estado = {
-  label: string;
-  value: 'activo' | 'inactivo';
-};
+type Estado = 'activo' | 'inactivo' | string;;
 
 type Usuario = {
   id_usuario: number | null;
@@ -36,7 +33,7 @@ type Usuario = {
   nombre: string;
   rol: string;
   id_rol: number | null;
-  estado: 'activo' | 'inactivo';
+  estado: Estado; 
   fecha_creacion: Date | null;
   fecha_actualizacion: Date | null;
 };
@@ -76,10 +73,10 @@ const UserManagement: React.FC = () => {
   ];
 
   // Estados disponibles
-  const estados: Estado[] = [
-    { label: 'Activo', value: 'activo' },
-    { label: 'Inactivo', value: 'inactivo' }
-  ];
+  const estados = [
+  { label: 'Activo', value: 'activo' as const },
+  { label: 'Inactivo', value: 'inactivo' as const }
+];
 
   // Cargar usuarios desde el backend
   useEffect(() => {
@@ -161,77 +158,84 @@ const UserManagement: React.FC = () => {
   };
 
   // Guardar o actualizar usuario
-  const saveUser = async () => {
-    setSubmitted(true);
+const saveUser = async () => {
+  setSubmitted(true);
 
-    // Validaciones básicas del formulario
-    if (!user.username || !user.nombre || !user.rol || !user.estado) {
-      showError('Error', 'Todos los campos son requeridos');
-      return;
-    }
+  // Validaciones básicas del formulario
+  if (!user.username || !user.nombre || !user.rol || !user.estado) {
+    showError('Error', 'Todos los campos son requeridos');
+    return;
+  }
 
-    if (!user.id_usuario && (!user.password || !user.confirmPassword)) {
+  if (!user.id_usuario) {
+    if (!user.password || !user.confirmPassword) {
       showError('Error', 'La contraseña es requerida para nuevos usuarios');
       return;
     }
-
-    if (!user.id_usuario && !isPasswordValid(user.password || '')) {
+    if (!isPasswordValid(user.password)) {
       showError('Error', 'La contraseña no cumple con los requisitos mínimos de seguridad');
       return;
     }
-
     if (user.password !== user.confirmPassword) {
       showError('Error', 'Las contraseñas no coinciden');
       return;
     }
+  }
 
-    // Validación del token
-    if (!token) {
-      showError('Error de autenticación', 'No se encontró el token de acceso');
-      return;
+  if (!token) {
+    showError('Error de autenticación', 'No se encontró el token de acceso');
+    return;
+  }
+
+  try {
+    if (user.id_usuario) {
+      // Actualizar usuario existente
+      const updatedUser = await api.users.update(
+        user.id_usuario,
+        {
+          nombre: user.nombre,
+          rol: user.rol,
+          id_rol: user.id_rol,
+          estado: user.estado
+        },
+        token
+      );
+
+      // Actualizar estado local correctamente
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.id_usuario === user.id_usuario 
+            ? { ...u, ...updatedUser.data, fecha_actualizacion: new Date().toISOString() } 
+            : u
+        )
+      );
+      
+      showSuccess('Usuario actualizado exitosamente');
+    } else {
+      // Crear nuevo usuario
+      const newUser = await api.users.create(
+        {
+          username: user.username,
+          password: user.password!,
+          nombre: user.nombre,
+          rol: user.rol,
+          id_rol: user.id_rol,
+          estado: user.estado
+        },
+        token
+      );
+
+      // Agregar el nuevo usuario al estado local
+      setUsers(prevUsers => [...prevUsers, newUser.data]);
+      showSuccess('Usuario creado exitosamente');
     }
 
-    try {
-      if (user.id_usuario) {
-        // Actualizar estado local
-        setUsers((prevUsers) =>
-          Array.isArray(prevUsers)
-            ? prevUsers.map(u => u.id_usuario === user.id_usuario ? user : u)
-            : [user]
-        );
-        showSuccess('Usuario actualizado exitosamente');
-      } else {
-        // Crear nuevo usuario
-        const newUser = await api.users.create(
-          {
-            username: user.username,
-            password: user.password!,
-            nombre: user.nombre,
-            rol: user.rol,
-            id_rol: user.id_rol,
-            estado: user.estado
-          },
-          token
-        );
-
-        // Verificación de datos y actualización del estado local
-        const newUserData = newUser.data;
-
-        setUsers((prevUsers) =>
-          Array.isArray(prevUsers)
-            ? [...prevUsers, newUserData]
-            : [newUserData]
-        );
-
-        showSuccess('Usuario creado exitosamente');
-      }
-
-      setUserDialog(false);
-    } catch (error: any) {
-      console.error('Error en saveUser:', error);
-      showError('Error al guardar usuario', error.message || 'Error inesperado');
-    }
-  };
+    setUserDialog(false);
+  } catch (error: any) {
+    console.error('Error en saveUser:', error);
+    showError('Error al guardar usuario', error.message || 'Error inesperado');
+  }
+};
 
   // Cambiar estado de usuario
   const changeStatus = async (user: Usuario) => {
@@ -307,18 +311,25 @@ const UserManagement: React.FC = () => {
   };
 
   // Plantilla para estado
-  const statusBodyTemplate = (rowData?: Usuario) => {
-    if (!rowData || !rowData.estado) {
-      return <span className="p-badge p-badge-secondary">Desconocido</span>;
-    }
+  const statusBodyTemplate = (rowData: Usuario) => {
+  // Verificación más robusta del estado
+  if (!rowData || rowData.estado === undefined || rowData.estado === null) {
+    console.warn('Estado no definido para el usuario:', rowData);
+    return <span className="p-badge p-badge-secondary">Desconocido</span>;
+  }
 
-    return (
-      <span className={`p-tag ${rowData.estado === 'activo' ? 'p-tag-success' : 'p-tag-danger'}`}>
-        {rowData.estado === 'activo' ? 'Activo' : 'Inactivo'}
-      </span>
-    );
-  };
-
+  // Convertir a string y luego a minúsculas
+  const estadoStr = String(rowData.estado).toLowerCase();
+  
+  // Validar los valores permitidos
+  const estadoValido = estadoStr === 'activo' || estadoStr === 'inactivo';
+  
+  return (
+    <span className={`p-tag ${estadoValido ? (estadoStr === 'activo' ? 'p-tag-success' : 'p-tag-danger') : 'p-badge-secondary'}`}>
+      {estadoValido ? (estadoStr === 'activo' ? 'Activo' : 'Inactivo') : 'Desconocido'}
+    </span>
+  );
+};
   // Plantilla para fecha
   const dateBodyTemplate = (rowData: { fecha_creacion?: string }) => {
     if (!rowData || !rowData.fecha_creacion) return '-';
@@ -423,10 +434,11 @@ const UserManagement: React.FC = () => {
               />
               <Column 
                 field="fecha_actualizacion" 
+                className='fecha_actualizacion'
                 header="Última Actualización" 
                 body={(rowData) => dateBodyTemplate(rowData.fecha_actualizacion)} 
                 sortable 
-                style={{ minWidth: '12rem' }} 
+                style={{ minWidth: '12rem', display:"none" }} 
               />
               <Column 
                 body={actionBodyTemplate} 

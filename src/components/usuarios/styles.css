@@ -111,3 +111,6 @@
   align-items: center;
   justify-content: center;
 }
+.fecha_actualizacion {
+  display: none;
+}
