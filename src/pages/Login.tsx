@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const { login, loading, error, clearError } = useAuth();
+  const { login, loading, error, clearError} = useAuth();
 
   const location = useLocation();
 
