@@ -84,7 +84,7 @@ const HomeAdmin: React.FC = () => {
         className="app-main-content"
         style={{
           flex: 1,
-          padding: "2rem",
+          padding: "0.5rem",
           minHeight: "100vh",
           maxWidth: "100%",
           overflow: "auto"

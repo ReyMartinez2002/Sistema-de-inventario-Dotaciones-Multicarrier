@@ -14,42 +14,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-
   const api = useMemo(() => new Api(), []);
 
-  // Dentro de tu AuthProvider
-const logout = useCallback(async () => {
-  try {
-    setLoading(true);
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    
-    // 1. Invalidar token en backend
-    if (token) {
-      try {
-        await api.auth.logout(token);
-      } catch (error) {
-        console.error("Error en logout remoto:", error);
+  const logout = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      if (token) {
+        try {
+          await api.auth.logout(token);
+        } catch (error) {
+          console.error("Error en logout remoto:", error);
+        }
       }
-    }
 
-    // 2. Limpieza nuclear
-    setUser(null);
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
-    
-    // 3. Forzar recarga completa
-    window.location.href = '/login?logout=success&t=' + Date.now();
-    
-  } catch (error) {
-    console.error("Error en logout:", error);
-    window.location.href = '/login?logout=error';
-  } finally {
-    setLoading(false);
-  }
-}, [api]);
+      // Limpieza completa
+      setUser(null);
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      
+      // Forzar recarga completa para limpiar estados
+      window.location.href = '/login?logout=success';
+      
+    } catch (error) {
+      console.error("Error en logout:", error);
+      window.location.href = '/login?logout=error';
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
 
   const validateToken = useCallback(async (token: string) => {
     try {
+      setLoading(true);
       const userData = await api.auth.validateToken(token);
       
       setUser({
@@ -62,14 +60,15 @@ const logout = useCallback(async () => {
         token,
       });
       
-      // Si estamos en la página de login y el token es válido, redirigir
+      // Solo redirigir si estamos en la página de login
       if (location.pathname === "/login") {
-        const redirectPath = userData.id_rol === 1 ? "/admin" : "/dashboard";
-        navigate(redirectPath, { replace: true });
+        const searchParams = new URLSearchParams(location.search);
+        const redirect = searchParams.get('redirect') || '/';
+        navigate(redirect, { replace: true });
       }
     } catch (error) {
       console.error("Token inválido o expirado:", error);
-      await logout(); // Limpiar sesión inválida
+      await logout();
     } finally {
       setLoading(false);
     }
@@ -77,15 +76,19 @@ const logout = useCallback(async () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (token) {
-      validateToken(token);
-    } else {
-      setLoading(false);
-      // Si no hay token y no estamos en login, redirigir
-      if (location.pathname !== "/login") {
-        navigate("/login", { replace: true });
+    
+    const checkAuth = async () => {
+      if (token) {
+        await validateToken(token);
+      } else {
+        setLoading(false);
+        if (location.pathname !== "/login") {
+          navigate("/login", { replace: true });
+        }
       }
-    }
+    };
+
+    checkAuth();
   }, [validateToken, navigate, location]);
 
   const login = async (username: string, password: string, remember: boolean): Promise<boolean> => {
@@ -108,8 +111,11 @@ const logout = useCallback(async () => {
         token,
       });
 
-      const redirectPath = userData.id_rol === 1 ? "/admin" : "/dashboard";
-      navigate(redirectPath, { replace: true });
+      // Redirigir después de login exitoso
+      const searchParams = new URLSearchParams(location.search);
+      const redirect = searchParams.get('redirect') || '/';
+      navigate(redirect, { replace: true });
+      
       return true;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Error al iniciar sesión";

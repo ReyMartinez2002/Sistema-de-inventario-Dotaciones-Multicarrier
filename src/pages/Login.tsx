@@ -15,29 +15,22 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const { login, loading, error, clearError, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-const params = new URLSearchParams(location.search);
+  const { login, loading, error, clearError } = useAuth();
 
-  useEffect(() => {
-    // Limpiar errores y sesión inválida
-    if (params.get('invalid_session')) {
+  const location = useLocation();
+
+   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    
+    // Limpiar estados solo si viene de logout
+    if (params.get('logout')) {
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
+      if (clearError) clearError();
     }
-    
-    if (params.get('logout')) {
-      clearError?.();
-    }
-    
-    if (isAuthenticated) {
-      const redirect = params.get('redirect') || '/';
-      navigate(redirect, { replace: true });
-    }
-  }, [isAuthenticated, navigate, params, clearError]);
+  }, [location, clearError]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (clearError) clearError();
     
@@ -47,7 +40,6 @@ const params = new URLSearchParams(location.search);
       console.error('Login failed:', err);
     }
   };
-
   return (
     <div className="login-root">
       <div className="login-container">
