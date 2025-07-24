@@ -4,10 +4,12 @@ import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { Message } from "primereact/message";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "./styles/Login.css";
 import icono from "../assets/Icono-casco.png";
 import { useAuth } from "../contex/useAuth";
+
+
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -15,12 +17,25 @@ const Login: React.FC = () => {
   const [remember, setRemember] = useState(false);
   const { login, loading, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+const params = new URLSearchParams(location.search);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/'); // Redirige si ya está autenticado
+    // Limpiar errores y sesión inválida
+    if (params.get('invalid_session')) {
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
     }
-  }, [isAuthenticated, navigate]);
+    
+    if (params.get('logout')) {
+      clearError?.();
+    }
+    
+    if (isAuthenticated) {
+      const redirect = params.get('redirect') || '/';
+      navigate(redirect, { replace: true });
+    }
+  }, [isAuthenticated, navigate, params, clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -8,6 +8,8 @@ import { Tooltip } from "primereact/tooltip";
 import { Badge } from "primereact/badge";
 import { Divider } from "primereact/divider";
 import { classNames } from "primereact/utils";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Toast } from "primereact/toast";
 import "./styles/SidebarAdmin.css";
 import { Api } from "../services/api";
 
@@ -36,24 +38,62 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
   token,
   onLogout = () => {
     localStorage.removeItem("token");
-    window.location.reload();
+    sessionStorage.removeItem("sessionData");
+    window.location.href = "/login?logout=success";
   },
 }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [loading, setLoading] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const toast = useRef<Toast>(null);
 
   const handleLogout = useCallback(async () => {
     try {
-      if (token) {
-        await api.auth.logout(token);
-      }
+      confirmDialog({
+        message: "¿Está seguro que desea cerrar sesión?",
+        header: "Confirmación de cierre de sesión",
+        icon: "pi pi-exclamation-triangle",
+        acceptClassName: "p-button-danger",
+        accept: async () => {
+          try {
+            setLoading(true);
+            
+            // Llamar al endpoint de logout profesional
+            await api.auth.logout(token);
+            
+            // Ejecutar las acciones de logout
+            onLogout();
+            
+            // Invalidar caché
+            if (window.caches) {
+              caches.keys().then(names => {
+                names.forEach(name => caches.delete(name));
+              });
+            }
+          } catch (error) {
+            console.error("Error en logout:", error);
+            toast.current?.show({
+              severity: "error",
+              summary: "Error",
+              detail: "Ocurrió un error al cerrar sesión",
+              life: 5000
+            });
+          } finally {
+            setLoading(false);
+          }
+        },
+        reject: () => {}
+      });
     } catch (error) {
       console.error("Error en logout:", error);
-    } finally {
-      localStorage.removeItem("token");
-      onLogout();
+      toast.current?.show({
+        severity: "error",
+        summary: "Error",
+        detail: "Ocurrió un error al confirmar el cierre de sesión",
+        life: 5000
+      });
     }
   }, [token, onLogout]);
 
@@ -295,6 +335,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
         <div className="menu-item-content">
           <i className={item.icon} />
           {!collapsed && <span>{item.label}</span>}
+          {loading && <i className="pi pi-spinner pi-spin ml-2" />}
         </div>
       ),
     },
@@ -304,8 +345,11 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
 
   return (
     <>
+      <Toast ref={toast} position="top-right" />
+      <ConfirmDialog />
       <Tooltip target=".custom-sidebar-toggle" position="right" />
       <Tooltip target=".collapsed-menu-item" position="right" />
+      
       {isMobile && (
         <Button
           icon="pi pi-bars"
@@ -322,6 +366,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           aria-label="Mostrar menú"
         />
       )}
+      
       {isMobile ? (
         <Sidebar
           visible={sidebarVisible}
@@ -339,6 +384,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
             panelMenuItems={menuItems}
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed(!collapsed)}
+            loading={loading}
             ref={sidebarRef}
           />
         </Sidebar>
@@ -356,6 +402,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
             panelMenuItems={menuItems}
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed(!collapsed)}
+            loading={loading}
           />
         </aside>
       )}
@@ -363,72 +410,75 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
   );
 };
 
-const SidebarContent = React.forwardRef<
-  HTMLDivElement,
-  {
-    user: string;
-    role: string;
-    avatarUrl: string;
-    panelMenuItems: MenuItem[];
-    collapsed: boolean;
-    onToggleCollapse: () => void;
-  }
->(({ user, role, avatarUrl, panelMenuItems, collapsed, onToggleCollapse }, ref) => (
-  <div className="sidebar-content-wrapper" ref={ref}>
-    <div className="sidebar-header">
-      <Avatar
-        image={avatarUrl}
-        size="xlarge"
-        shape="circle"
-        className="sidebar-avatar"
-        style={{
-          width: collapsed ? 48 : 64,
-          height: collapsed ? 48 : 64,
-          transition: "all 0.3s ease",
-        }}
-      />
-      {!collapsed && (
-        <>
-          <span className="sidebar-title">Gestión EPP</span>
-          <span className="sidebar-username">{user || "Admin"}</span>
-          <span className="sidebar-role">{role}</span>
-        </>
-      )}
-    </div>
-    <Divider className="sidebar-divider" />
-    <div className="sidebar-menu-scrollable custom-panelmenu">
-      <PanelMenu
-        model={panelMenuItems}
-        style={{
-          border: "none",
-          background: "transparent",
-          width: "100%",
-        }}
-        multiple={false}
-      />
-    </div>
-    <div className="sidebar-footer">
-      <Button
-        icon={`pi pi-chevron-${collapsed ? "right" : "left"}`}
-        className="p-button-rounded p-button-text p-button-sm toggle-collapse-btn"
-        onClick={onToggleCollapse}
-        tooltip={collapsed ? "Expandir menú" : "Colapsar menú"}
-        tooltipOptions={{ position: "right" }}
-      />
-      {!collapsed && (
-        <>
-          <Divider className="footer-divider" />
-          <div className="footer-content">
-            <div>© {new Date().getFullYear()} Multicarrier</div>
-            <div className="support-link">
-              <i className="pi pi-lifebuoy"></i>
-              <a href="mailto:soporte@multicarrier.com">Soporte</a>
+interface SidebarContentProps {
+  user: string;
+  role: string;
+  avatarUrl: string;
+  panelMenuItems: MenuItem[];
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  loading?: boolean;
+}
+
+const SidebarContent = React.forwardRef<HTMLDivElement, SidebarContentProps>(
+  ({ user, role, avatarUrl, panelMenuItems, collapsed, onToggleCollapse, loading }, ref) => (
+    <div className="sidebar-content-wrapper" ref={ref}>
+      <div className="sidebar-header">
+        <Avatar
+          image={avatarUrl}
+          size="xlarge"
+          shape="circle"
+          className="sidebar-avatar"
+          style={{
+            width: collapsed ? 48 : 64,
+            height: collapsed ? 48 : 64,
+            transition: "all 0.3s ease",
+          }}
+        />
+        {!collapsed && (
+          <>
+            <span className="sidebar-title">Gestión EPP</span>
+            <span className="sidebar-username">{user || "Admin"}</span>
+            <span className="sidebar-role">{role}</span>
+          </>
+        )}
+      </div>
+      <Divider className="sidebar-divider" />
+      <div className="sidebar-menu-scrollable custom-panelmenu">
+        <PanelMenu
+          model={panelMenuItems}
+          style={{
+            border: "none",
+            background: "transparent",
+            width: "100%",
+          }}
+          multiple={false}
+        />
+      </div>
+      <div className="sidebar-footer">
+        <Button
+          icon={`pi pi-chevron-${collapsed ? "right" : "left"}`}
+          className="p-button-rounded p-button-text p-button-sm toggle-collapse-btn"
+          onClick={onToggleCollapse}
+          tooltip={collapsed ? "Expandir menú" : "Colapsar menú"}
+          tooltipOptions={{ position: "right" }}
+          disabled={loading}
+        />
+        {!collapsed && (
+          <>
+            <Divider className="footer-divider" />
+            <div className="footer-content">
+              <div>© {new Date().getFullYear()} Multicarrier</div>
+              <div className="support-link">
+                <i className="pi pi-lifebuoy"></i>
+                <a href="mailto:soporte@multicarrier.com">Soporte</a>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
-  </div>
-));
+  )
+);
 
 export default React.memo(SidebarAdmin);

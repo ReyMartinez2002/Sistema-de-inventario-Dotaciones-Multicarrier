@@ -17,28 +17,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const api = useMemo(() => new Api(), []);
 
-  const logout = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      if (token) {
+  // Dentro de tu AuthProvider
+const logout = useCallback(async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    
+    // 1. Invalidar token en backend
+    if (token) {
+      try {
         await api.auth.logout(token);
-      }
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-    } finally {
-      setUser(null);
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("token");
-      if (location.pathname !== "/login") {
-        navigate("/login", { replace: true });
+      } catch (error) {
+        console.error("Error en logout remoto:", error);
       }
     }
-  }, [navigate, location.pathname, api]);
+
+    // 2. Limpieza nuclear
+    setUser(null);
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
+    
+    // 3. Forzar recarga completa
+    window.location.href = '/login?logout=success&t=' + Date.now();
+    
+  } catch (error) {
+    console.error("Error en logout:", error);
+    window.location.href = '/login?logout=error';
+  } finally {
+    setLoading(false);
+  }
+}, [api]);
 
   const validateToken = useCallback(async (token: string) => {
     try {
       const userData = await api.auth.validateToken(token);
-
+      
       setUser({
         id: userData.id_usuario,
         username: userData.username,
@@ -48,13 +61,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: userData.email || userData.username,
         token,
       });
+      
+      // Si estamos en la página de login y el token es válido, redirigir
+      if (location.pathname === "/login") {
+        const redirectPath = userData.id_rol === 1 ? "/admin" : "/dashboard";
+        navigate(redirectPath, { replace: true });
+      }
     } catch (error) {
       console.error("Token inválido o expirado:", error);
-      logout();
+      await logout(); // Limpiar sesión inválida
     } finally {
       setLoading(false);
     }
-  }, [logout, api]);
+  }, [api, logout, navigate, location]);
 
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -62,15 +81,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       validateToken(token);
     } else {
       setLoading(false);
+      // Si no hay token y no estamos en login, redirigir
+      if (location.pathname !== "/login") {
+        navigate("/login", { replace: true });
+      }
     }
-  }, [validateToken]);
+  }, [validateToken, navigate, location]);
 
   const login = async (username: string, password: string, remember: boolean): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
 
-      const { usuario: userData, token } = await api.auth.login(username, password);
+      const { token, usuario: userData } = await api.auth.login(username, password);
 
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem("token", token);
@@ -99,19 +122,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const contextValue = useMemo(() => ({
+    user,
+    login,
+    logout,
+    loading,
+    error,
+    isAuthenticated: !!user,
+    clearError,
+    token: user?.token ?? null,
+  }), [user, login, logout, loading, error, clearError]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        loading,
-        error,
-        isAuthenticated: !!user,
-        clearError,
-        token: user?.token ?? null,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

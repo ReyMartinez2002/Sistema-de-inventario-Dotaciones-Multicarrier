@@ -19,26 +19,55 @@ export class Api {
         return response.json();
       },
 
-      logout: async (token: string) => {
-        const response = await fetch(`${this.baseUrl}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) throw new Error("Error al cerrar sesión");
-        return response.json();
+      logout: async (token: string | undefined) => {
+        if (!token) {
+          console.warn("No se proporcionó token para logout");
+          return { success: true, message: "Sesión cerrada localmente" };
+        }
+
+        try {
+          const response = await fetch(`${this.baseUrl}/auth/logout`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.status === 401) {
+            // Token expirado o inválido - consideramos logout exitoso
+            return { success: true, message: "Sesión terminada" };
+          }
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || "Error al cerrar sesión");
+          }
+
+          return response.json();
+        } catch (error) {
+          console.error("Error en logout remoto:", error);
+          // Aún así permitimos el logout local
+          return { success: true, message: "Sesión terminada localmente" };
+        }
       },
 
-      validateToken: async (token: string) => {
+      validateToken: async (token: string | undefined) => {
+        if (!token) {
+          throw new Error("Token no proporcionado");
+        }
+
         const response = await fetch(`${this.baseUrl}/auth/validate`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
-        if (!response.ok) throw new Error("Token inválido o expirado");
+
+        if (!response.ok) {
+          throw new Error("Token inválido o expirado");
+        }
+        
         return response.json();
       }
     };
@@ -130,16 +159,6 @@ export class Api {
   return response.json();
 },
 
-      delete: async (id: number, token: string) => {
-        const response = await fetch(`${this.baseUrl}/users/${id}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) throw new Error("Error al eliminar usuario");
-        return response.json();
-      },
 
      changeStatus: async (id: number, status: 'activo' | 'inactivo', token: string) => {
   const response = await fetch(`${this.baseUrl}/users/${id}/status`, {

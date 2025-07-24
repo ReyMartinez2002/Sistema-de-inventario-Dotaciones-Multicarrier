@@ -6,6 +6,15 @@
   justify-content: center;
 }
 
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #333;
+}
+
 .login-container {
   display: flex;
   width: 800px;

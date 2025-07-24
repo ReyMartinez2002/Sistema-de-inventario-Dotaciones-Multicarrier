@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const User = require('../models/user.model');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '3600';
 
 const login = async (req, res) => {
   const { username, password } = req.body;
@@ -135,22 +135,73 @@ const register = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    // Aquí podrías implementar blacklist de tokens si lo necesitas realmente
-    res.status(200).json({
-      success: true,
-      message: 'Sesión cerrada correctamente',
-      logoutId: uuidv4(),
-      timestamp: new Date().toISOString(),
-    });
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(200).json({
+        success: true,
+        message: 'Sesión cerrada (sin token)'
+      });
+    }
+
+    try {
+      // Verificar y decodificar el token primero
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Invalidar el token en Redis sin importar si está expirado
+      await setAsync(`blacklist:${token}`, 'logged_out');
+      await expireAsync(`blacklist:${token}`, TOKEN_BLACKLIST_TTL);
+      
+      await User.insertLogoutHistory({
+        id_usuario: decoded.id_usuario,
+        token_id: decoded.sessionId,
+        ip_address: req.ip,
+        logout_time: new Date()
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Sesión cerrada correctamente',
+        // Agregar estas propiedades para el frontend
+        logoutAction: 'clearAndRedirect',
+        redirectTo: '/login?logout=success'
+      });
+
+    } catch (error) {
+      // Si el token es inválido o expirado, igual consideramos logout exitoso
+      return res.status(200).json({
+        success: true,
+        message: 'Sesión cerrada (token inválido/expirado)',
+        logoutAction: 'clearAndRedirect',
+        redirectTo: '/login?logout=success'
+      });
+    }
   } catch (error) {
     console.error('Error en logout:', error);
-    res.status(500).json({
-      error: 'Error al cerrar sesión',
-      code: 'LOGOUT_ERROR',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      timestamp: new Date().toISOString(),
+    return res.status(200).json({
+      success: true,
+      message: 'Sesión cerrada (con errores)',
+      logoutAction: 'clearAndRedirect',
+      redirectTo: '/login?logout=error'
     });
   }
+};
+
+// Middleware para verificar tokens blacklisted
+const checkTokenBlacklist = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (token) {
+    const isBlacklisted = await getAsync(`blacklist:${token}`);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        error: 'Token invalidado. Por favor inicie sesión nuevamente.',
+        code: 'TOKEN_REVOKED'
+      });
+    }
+  }
+  
+  next();
 };
 
 const validateToken = async (req, res) => {
@@ -174,5 +225,6 @@ module.exports = {
   login,
   register,
   logout,
-  validateToken 
+  validateToken,  
+  checkTokenBlacklist
 };
