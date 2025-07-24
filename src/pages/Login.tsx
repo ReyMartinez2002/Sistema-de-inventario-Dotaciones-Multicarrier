@@ -4,7 +4,7 @@ import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { Message } from "primereact/message";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import "./styles/Login.css";
 import icono from "../assets/Icono-casco.png";
 import { useAuth } from "../contex/useAuth";
