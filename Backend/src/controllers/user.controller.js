@@ -63,7 +63,13 @@ exports.createUser = async (req, res) => {
       });
     }
 
-    const { username, password, nombre, rol, id_rol, estado = true } = req.body;
+    const { username, password, nombre, rol, id_rol, estado = 'activo' } = req.body;
+    if (estado && !['activo', 'inactivo'].includes(estado)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El estado debe ser "activo" o "inactivo"'
+      });
+    }
 
     // Validación de campos obligatorios
     const requiredFields = ['username', 'password', 'nombre', 'rol', 'id_rol'];

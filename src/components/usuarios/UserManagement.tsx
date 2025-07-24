@@ -224,6 +224,7 @@ const saveUser = async () => {
         },
         token
       );
+      
 
       // Agregar el nuevo usuario al estado local
       setUsers(prevUsers => [...prevUsers, newUser.data]);

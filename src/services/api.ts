@@ -87,42 +87,30 @@ export class Api {
       },
 
       create: async (userData: any, token: string) => {
-        // Convertir estado booleano a string para el backend
-        const payload = {
-          ...userData,
-          estado: userData.estado ? 'activo' : 'inactivo'
-        };
+  const response = await fetch(`${this.baseUrl}/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData), // Enviar los datos sin transformación
+  });
 
-        const response = await fetch(`${this.baseUrl}/users`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
+  if (response.status === 409) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "El nombre de usuario ya existe");
+  }
 
-        if (response.status === 409) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "El nombre de usuario ya existe");
-        }
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Error al crear usuario");
+  }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || "Error al crear usuario");
-        }
-
-        const data = await response.json();
-        
-        // Convertir estado string a booleano en la respuesta
-        return {
-          ...data,
-          data: {
-            ...data.data,
-            estado: data.data?.estado === 'activo'
-          }
-        };
-      },
+  const data = await response.json();
+  
+  // Devolver los datos sin transformación
+  return data;
+},
 
       update: async (id: number, userData: any, token: string) => {
   const response = await fetch(`${this.baseUrl}/users/${id}`, {

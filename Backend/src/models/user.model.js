@@ -65,7 +65,8 @@ const UserModel = {
         throw new Error('Datos incompletos para crear usuario');
       }
 
-      const estado = data.estado ? 'activo' : 'inactivo';
+      const estado = data.estado || 'activo';
+
 
       // Insertar usuario
       const [result] = await connection.query(
