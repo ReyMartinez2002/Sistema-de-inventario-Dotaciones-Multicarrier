@@ -8,4 +8,5 @@ export interface User {
   id_rol: number; 
   email: string;
   token: string;
+  foto?: string; // URL de la foto del usuario
 }

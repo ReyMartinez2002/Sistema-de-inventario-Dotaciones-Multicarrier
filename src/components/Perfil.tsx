@@ -1,4 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
+import { useAuth } from "../contex/useAuth";
+import { UserApi } from "../services/userApi";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
@@ -6,7 +8,8 @@ import { FileUpload } from "primereact/fileupload";
 import { Toast } from "primereact/toast";
 import { Image } from "primereact/image";
 import { Divider } from "primereact/divider";
-import { Checkbox } from "primereact/checkbox"; // Importación añadida
+import { Checkbox } from "primereact/checkbox";
+import type { CheckboxChangeEvent } from "primereact/checkbox";
 import { classNames } from "primereact/utils";
 import type { FileUploadHandlerEvent } from "primereact/fileupload";
 import "./styles/Perfil.css";
@@ -18,22 +21,24 @@ interface UsuarioPerfil {
   foto: string;
 }
 
+const userApi = new UserApi();
+
 const Perfil: React.FC = () => {
+  const { user, token } = useAuth();
+
   const [perfil, setPerfil] = useState<UsuarioPerfil>({
-    nombre: "Juan Pérez",
-    correo: "juan.perez@multicarrier.com",
-    rol: "Administrador",
-    foto: "/user-default.png",
+    nombre: user?.nombre || "",
+    correo: user?.username || user?.email || "",
+    rol: user?.rol || "",
+    foto: user?.foto || "/user-default.png",
   });
 
   const [modoOscuro, setModoOscuro] = useState(false);
   const [cargando, setCargando] = useState(false);
   const toast = useRef<Toast>(null);
 
-  const onUpload = useCallback((e: FileUploadHandlerEvent) => {
+  const onUpload = useCallback(async (e: FileUploadHandlerEvent) => {
     const file = e.files[0];
-    
-    // Validar tipo de archivo
     if (!file.type.startsWith('image/')) {
       toast.current?.show({
         severity: 'error',
@@ -43,8 +48,6 @@ const Perfil: React.FC = () => {
       });
       return;
     }
-
-    // Validar tamaño de archivo (2MB máximo)
     if (file.size > 2 * 1024 * 1024) {
       toast.current?.show({
         severity: 'error',
@@ -54,36 +57,43 @@ const Perfil: React.FC = () => {
       });
       return;
     }
-
     setCargando(true);
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      setPerfil(prev => ({ ...prev, foto: event.target?.result as string }));
-      toast.current?.show({
-        severity: 'success',
-        summary: 'Foto actualizada',
-        detail: 'Se ha cargado una nueva foto de perfil',
-        life: 3000
-      });
-      setCargando(false);
-    };
-    
-    reader.onerror = () => {
+    try {
+      await userApi.updatePhoto(user!.id, file, token!);
+      // Simula refrescar la foto (en real deberías volver a traer el usuario)
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPerfil(prev => ({ ...prev, foto: event.target?.result as string }));
+        toast.current?.show({
+          severity: 'success',
+          summary: 'Foto actualizada',
+          detail: 'Se ha cargado una nueva foto de perfil',
+          life: 3000
+        });
+        setCargando(false);
+      };
+      reader.onerror = () => {
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'No se pudo cargar la imagen',
+          life: 3000
+        });
+        setCargando(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
       toast.current?.show({
         severity: 'error',
         summary: 'Error',
-        detail: 'No se pudo cargar la imagen',
+        detail: 'No se pudo actualizar la foto',
         life: 3000
       });
       setCargando(false);
-    };
-    
-    reader.readAsDataURL(file);
-  }, []);
+    }
+  }, [user, token]);
 
-  const guardarCambios = useCallback(() => {
-    // Validaciones
+  const guardarCambios = useCallback(async () => {
     if (!perfil.nombre.trim()) {
       toast.current?.show({
         severity: 'warn',
@@ -93,7 +103,6 @@ const Perfil: React.FC = () => {
       });
       return;
     }
-
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(perfil.correo)) {
       toast.current?.show({
         severity: 'warn',
@@ -103,20 +112,25 @@ const Perfil: React.FC = () => {
       });
       return;
     }
-
     setCargando(true);
-    
-    // Simular llamada a API
-    setTimeout(() => {
+    try {
+      await userApi.updateProfile(user!.id, { nombre: perfil.nombre, correo: perfil.correo }, token!);
       toast.current?.show({
         severity: 'success',
         summary: 'Perfil actualizado',
         detail: 'Los cambios han sido guardados correctamente',
         life: 3000
       });
-      setCargando(false);
-    }, 1000);
-  }, [perfil.nombre, perfil.correo]);
+    } catch {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No se pudo actualizar el perfil',
+        life: 3000
+      });
+    }
+    setCargando(false);
+  }, [perfil, user, token]);
 
   const handleInputChange = useCallback((field: keyof UsuarioPerfil, value: string) => {
     setPerfil(prev => ({ ...prev, [field]: value }));
@@ -125,7 +139,6 @@ const Perfil: React.FC = () => {
   return (
     <div className={classNames("perfil-container", { 'dark-mode': modoOscuro })}>
       <Toast ref={toast} position="top-right" />
-      
       <Card 
         title="Mi Perfil" 
         className="perfil-card shadow-3"
@@ -134,9 +147,9 @@ const Perfil: React.FC = () => {
             <div className="flex align-items-center gap-2">
               <i className="pi pi-moon" />
               <Checkbox 
-                inputId="modoOscuro" 
-                checked={modoOscuro} 
-                onChange={(e: { checked: boolean }) => setModoOscuro(e.checked)} // Tipo añadido
+                inputId="modoOscuro"
+                checked={modoOscuro}
+                onChange={(e: CheckboxChangeEvent) => setModoOscuro(!!e.checked)}
               />
               <label htmlFor="modoOscuro" className="text-sm">Modo oscuro</label>
             </div>
