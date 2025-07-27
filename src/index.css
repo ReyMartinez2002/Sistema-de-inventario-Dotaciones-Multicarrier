@@ -37,3 +37,6 @@ body {
     right: -3.8rem !important;
 }
 
+#root > div > main > div > div.card > div:nth-child(2) > span > input {
+    padding-left: 30px !important;
+}

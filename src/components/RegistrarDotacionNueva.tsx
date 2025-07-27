@@ -225,6 +225,7 @@ const RegistrarDotacionNueva: React.FC = () => {
       }`
     );
   }
+  loadData(); // Recargar datos después de guardar
 };
 
   const handleEdit = (dotacion: Dotacion) => {
@@ -254,6 +255,7 @@ const RegistrarDotacionNueva: React.FC = () => {
     }
 
     setEditDialog(true);
+    loadData();
   };
 
 const handleDelete = async (dotacion: Dotacion) => {
