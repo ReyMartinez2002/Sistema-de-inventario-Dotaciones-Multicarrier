@@ -1,5 +1,5 @@
 /* styles.css */
-.p-datatable .p-datatable-thead > tr > th {
+.p-datatable .p-datatable-thead>tr>th {
   background-color: #f8fafc;
   color: #334155;
   font-weight: 600;
@@ -7,14 +7,17 @@
   font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
+
 .input-Buscar {
   padding-left: 30px;
 }
-#confirmPassword > div > span, #password > div > span {
+
+#confirmPassword>div>span,
+#password>div>span {
   right: 1rem !important;
 }
 
-.p-datatable .p-datatable-tbody > tr > td {
+.p-datatable .p-datatable-tbody>tr>td {
   padding: 0.75rem 1rem;
   vertical-align: middle;
 }
@@ -98,11 +101,11 @@
   display: block;
 }
 
-.p-datatable.p-datatable-sm .p-datatable-tbody > tr > td {
+.p-datatable.p-datatable-sm .p-datatable-tbody>tr>td {
   padding: 0.5rem 1rem;
 }
 
-.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
+.p-datatable-striped .p-datatable-tbody>tr:nth-child(even) {
   background-color: #f8fafc;
 }
 
@@ -111,13 +114,27 @@
   align-items: center;
   justify-content: center;
 }
+
 .fecha_actualizacion {
   display: none;
 }
 
-.p-button-rounded {
-     top: 0px !important; 
+.btn-menu-ambuerguesa {
+  right: 2.5rem !important;
+  top: 2rem !important;
+
+}
+
+@media (max-width: 576px) {
+
+  .btn-menu-ambuerguesa {
+    top: 2rem !important;
     right: 1rem !important;
-    left: auto !important;
-    
-} 
+
+  }
+}
+
+.btn-success-ajustes {
+  left: 1.5rem !important;
+  top: 1rem !important;
+}

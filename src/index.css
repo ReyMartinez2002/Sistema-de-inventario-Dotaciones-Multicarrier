@@ -1,0 +1,14 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+.p-inputtext, .p-dropdown, .p-password input {
+    background: #fff;
+    color: #222;
+    transition: background 0.3s, color 0.3s, border 0.3s;
+}
+.field > label {
+    display: inline-block;
+    margin-top: 0.8rem;
+    margin-bottom: 0.5rem;
+}

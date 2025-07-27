@@ -13,11 +13,12 @@
 /* CARD */
 .p-card {
   border-radius: 12px;
-  overflow: hidden;
+  /*overflow: hidden;*/
   background: #fff;
   color: #222;
   transition: background 0.3s, color 0.3s;
 }
+
 .settings-container.dark-mode .p-card {
   background: #23272f;
   color: #f4f4f4;
@@ -30,10 +31,13 @@
   background: #fff;
   transition: border 0.3s, background 0.3s, color 0.3s;
 }
+
 .settings-container.dark-mode .p-panel {
-  border: 1px solid #23272f; /* sutil en dark */
+  border: 1px solid #23272f;
+  /* sutil en dark */
   background: #262a32;
 }
+
 .p-panel .p-panel-header {
   border-bottom: 1px solid var(--surface-d);
   background: var(--surface-a);
@@ -41,17 +45,20 @@
   font-weight: 600;
   transition: background 0.3s, color 0.3s;
 }
+
 .p-panel .p-panel-content {
   padding: 1.5rem;
   background: #fff;
   color: #222;
   transition: background 0.3s, color 0.3s;
 }
+
 .settings-container.dark-mode .p-panel .p-panel-header {
   background: #23272f;
   color: #f4f4f4;
   border-bottom: 1px solid #363636;
 }
+
 .settings-container.dark-mode .p-panel .p-panel-content {
   background: #262a32;
   color: #f4f4f4;
@@ -66,6 +73,7 @@
   border: 1px solid #dcdcdc;
   transition: background 0.3s, color 0.3s, border 0.3s;
 }
+
 .settings-container.dark-mode .p-inputtext,
 .settings-container.dark-mode .p-dropdown,
 .settings-container.dark-mode .p-password input {
@@ -73,21 +81,26 @@
   color: #f4f4f4;
   border: 1px solid #3a3a3a;
 }
+
 .p-dropdown-panel {
   background: #fff;
   color: #222;
 }
+
 .settings-container.dark-mode .p-dropdown-panel {
   background: #23272f;
   color: #f4f4f4;
 }
+
 .p-dropdown-item {
   color: inherit;
 }
+
 .p-dropdown-item.p-highlight {
   background: #e2e2e2;
   color: var(--primary-color);
 }
+
 .settings-container.dark-mode .p-dropdown-item.p-highlight {
   background: #3a485a;
   color: #53a9ff;
@@ -98,14 +111,17 @@
   border: 1px solid #bdbdbd;
   background: #fff;
 }
+
 .settings-container.dark-mode .p-checkbox .p-checkbox-box {
   border: 1px solid #6c7a89;
   background: #23272f;
 }
+
 .p-checkbox .p-checkbox-box.p-highlight {
   border-color: var(--primary-color);
   background: var(--primary-color);
 }
+
 .settings-container.dark-mode .p-checkbox .p-checkbox-box.p-highlight {
   border-color: #53a9ff;
   background: #53a9ff;
@@ -116,6 +132,7 @@
   background: transparent;
   border: none;
 }
+
 .p-tabview .p-tabview-nav li .p-tabview-nav-link {
   padding: 1rem 1.5rem;
   border: none;
@@ -123,13 +140,16 @@
   color: inherit;
   transition: color 0.3s;
 }
+
 .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
   color: var(--primary-color);
   border-bottom: 2px solid var(--primary-color);
 }
+
 .settings-container.dark-mode .p-tabview .p-tabview-nav li .p-tabview-nav-link {
   color: #b9b9b9;
 }
+
 .settings-container.dark-mode .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
   color: #53a9ff;
   border-bottom: 2px solid #53a9ff;
@@ -139,24 +159,23 @@
 .p-button {
   transition: background 0.3s, color 0.3s;
 }
-.p-button-success,
-.p-button-success:enabled {
-  background: #00c853 !important;
-  border-color: #00c853 !important;
-}
+
 .p-button-success:enabled:hover {
   background: #009624 !important;
   border-color: #009624 !important;
 }
+
 .settings-container.dark-mode .p-button {
   color: #fff;
 }
+
 .settings-container.dark-mode .p-button-success,
 .settings-container.dark-mode .p-button-success:enabled {
   background: #1de982 !important;
   border-color: #1de982 !important;
   color: #222;
 }
+
 .settings-container.dark-mode .p-button-success:enabled:hover {
   background: #15b863 !important;
   border-color: #15b863 !important;
@@ -173,6 +192,7 @@
 .settings-container.dark-mode ::-webkit-scrollbar {
   background: #1818185b;
 }
+
 .settings-container.dark-mode ::-webkit-scrollbar-thumb {
   background: #33333300;
   border-radius: 8px;
@@ -183,23 +203,26 @@
   .settings-container {
     padding: 1rem;
   }
+
   .p-tabview .p-tabview-nav {
     flex-direction: column;
   }
+
   .p-tabview .p-tabview-nav li {
     width: 100%;
   }
 }
 
 /* BUTTON ALIGNMENT FIX */
-.p-button-rounded {
-    left: 1.5rem !important;
-}
-#currentPass > div > span, #newPass > div > span, #confirmPass > div > span {
+#currentPass>div>span,
+#newPass>div>span,
+#confirmPass>div>span {
   right: 1rem;
 }
+
 .settings-container.dark-mode .p-tabview-panels {
   background: #21232523 !important;
   color: #f4f4f4;
   transition: background 0.3s, color 0.3s;
 }
+

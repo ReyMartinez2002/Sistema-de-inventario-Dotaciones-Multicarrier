@@ -353,12 +353,10 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
       {isMobile && (
         <Button
           icon="pi pi-bars"
-          className="p-button-rounded p-button-danger p-button-lg custom-sidebar-toggle"
+          className="p-button-rounded p-button-danger p-button-lg custom-sidebar-toggle btn-menu-ambuerguesa"
           data-pr-tooltip="Menú principal"
           style={{
             position: "fixed",
-            top: 20,
-            left: 20,
             zIndex: 1101,
             boxShadow: "0 2px 12px rgba(205, 24, 24, 0.3)",
           }}

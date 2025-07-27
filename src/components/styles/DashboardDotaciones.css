@@ -128,11 +128,7 @@
 }
 
 /* ESTILOS PARA MÓVILES/TABLETS (<992px) */
-.p-button-rounded {
-    top: 25px !important;
-    right: 1rem !important;
-    left: auto !important;
-  }
+
 .dashboard-dotaciones.mobile-view {
   padding: 0.75rem;
 }
@@ -236,11 +232,6 @@
   }
   .p-component {
     font-size: 0.6rem;
-  }
-  .p-button-rounded {
-    top: 25px !important;
-    right: 1rem !important;
-    left: auto !important;
   }
   .mobile-view .dashboard-header {
     margin-top: 1rem;

@@ -310,7 +310,7 @@ const Ajustes: React.FC = () => {
               <Button 
                 label="Guardar todos los cambios" 
                 icon="pi pi-save" 
-                className="p-button-rounded"
+                className="p-button-rounded btn-success-ajustes"
                 severity="success"
                 raised
               />
