@@ -1,14 +1,39 @@
 body {
     margin: 0;
     padding: 0;
+    --scrollbar-width: 11px;
 }
-.p-inputtext, .p-dropdown, .p-password input {
+
+.p-inputtext,
+.p-dropdown,
+.p-password input {
     background: #fff;
     color: #222;
     transition: background 0.3s, color 0.3s, border 0.3s;
 }
-.field > label {
+
+#root>div>main>div.grid>div>div>div>div>div.p-datatable-sm.p-datatable.p-component.p-datatable-hoverable-rows.p-datatable-responsive-scroll.p-datatable-striped>div.p-paginator-bottom.p-paginator.p-component>div>span, #estado > span {
+    border: none;
+}
+
+#confirmPassword>div>span,
+#password>div>span {
+    right: 0.5rem !important;
+}
+
+.field>label {
     display: inline-block;
     margin-top: 0.8rem;
     margin-bottom: 0.5rem;
 }
+
+.p-dialog .p-dialog-content {
+    background: #ffffff;
+    color: #4b5563;
+    padding: 0 1.5rem 0rem 1.5rem !important;
+}
+
+.login-right > form > div:nth-child(4) #password>div>span {
+    right: -3.8rem !important;
+}
+
