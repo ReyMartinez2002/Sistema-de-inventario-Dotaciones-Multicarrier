@@ -10,48 +10,18 @@ import { addLocale } from "primereact/api";
 import { DotacionApi } from "../services/dotacionApi";
 import { useAuth } from "../contex/useAuth";
 import "./styles/RegistrarDotacionNueva.css";
+import type { DotacionData, DotacionApiResponse, Categoria, Subcategoria } from '../types/Dotacion';
 
-interface Dotacion {
-  id?: number;
-  id_subcategoria: number;
-  descripcion: string;
-  genero?: string;
-  stock_nuevo: number;
-  stock_reutilizable?: number;
-  stock_minimo?: number;
-  precio_unitario?: number;
-  fecha_creacion?: string;
+// Extendemos la interfaz para incluir campos de visualización
+interface Dotacion extends DotacionApiResponse {
   subcategoria?: string;
   categoria?: string;
-}
-
-interface Categoria {
-  id_categoria: number;
-  nombre: string;
-}
-
-interface Subcategoria {
-  id_subcategoria: number;
-  id_categoria: number;
-  nombre: string;
-}
-
-interface DotacionApiResponse {
-  id: number;
-  id_subcategoria: number;
-  descripcion: string;
-  genero?: string;
-  stock_nuevo: number;
-  stock_reutilizable?: number;
-  stock_minimo?: number;
-  precio_unitario?: number;
-  fecha_creacion?: string;
 }
 
 const RegistrarDotacionNueva: React.FC = () => {
   const { token } = useAuth();
   const dotacionApi = useRef(new DotacionApi()).current;
-  const [formData, setFormData] = useState<Dotacion>({
+  const [formData, setFormData] = useState<DotacionData>({
     id_subcategoria: 0,
     descripcion: "",
     stock_nuevo: 1,
@@ -62,9 +32,7 @@ const RegistrarDotacionNueva: React.FC = () => {
   const [allSubcategorias, setAllSubcategorias] = useState<Subcategoria[]>([]);
   const [editDialog, setEditDialog] = useState(false);
   const [registerDialog, setRegisterDialog] = useState(false);
-  const [selectedDotacion, setSelectedDotacion] = useState<Dotacion | null>(
-    null
-  );
+  const [selectedDotacion, setSelectedDotacion] = useState<Dotacion | null>(null);
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const toast = useRef<Toast>(null);
 
@@ -145,23 +113,23 @@ const RegistrarDotacionNueva: React.FC = () => {
           dotacionApi.getSubcategorias(token),
         ]);
 
-      setDotaciones(
-        dotacionesData.map((d: DotacionApiResponse) => {
-          const subcat = subcategoriasData.find(
-            (sc: Subcategoria) => sc.id_subcategoria === d.id_subcategoria
-          );
-          const cat = categoriasData.find(
-            (c: Categoria) => c.id_categoria === subcat?.id_categoria
-          );
+      const dotacionesFormateadas: Dotacion[] = dotacionesData.map((d) => {
+        const subcat = subcategoriasData.find(
+          (sc) => sc.id_subcategoria === d.id_subcategoria
+        );
 
-          return {
-            ...d,
-            subcategoria: subcat?.nombre,
-            categoria: cat?.nombre,
-          };
-        })
-      );
+        const cat = subcat
+          ? categoriasData.find((c) => c.id_categoria === subcat.id_categoria)
+          : undefined;
 
+        return {
+          ...d,
+          subcategoria: subcat?.nombre,
+          categoria: cat?.nombre,
+        };
+      });
+
+      setDotaciones(dotacionesFormateadas);
       setCategorias(categoriasData);
       setAllSubcategorias(subcategoriasData);
     } catch (error) {
@@ -178,63 +146,98 @@ const RegistrarDotacionNueva: React.FC = () => {
   }, [loadData]);
 
   const handleSubmit = async () => {
-    if (!token) {
-      showError("No estás autenticado");
-      return;
-    }
+  if (!token) {
+    showError("No estás autenticado");
+    return;
+  }
 
-    if (
-      !formData.id_subcategoria ||
-      !formData.descripcion ||
-      !formData.stock_nuevo
-    ) {
-      showError("Por favor, completa los campos obligatorios");
-      return;
-    }
+  // Validación de campos obligatorios
+  if (!formData.id_subcategoria || !formData.descripcion || formData.stock_nuevo === undefined) {
+    showError("Por favor, completa los campos obligatorios");
+    return;
+  }
 
-    try {
-      if (selectedDotacion?.id) {
-        await dotacionApi.update(selectedDotacion.id, formData, token);
-        setDotaciones(
-          dotaciones.map((d) =>
-            d.id === selectedDotacion.id
-              ? { ...formData, id: selectedDotacion.id }
-              : d
-          )
-        );
-        showSuccess("Registro actualizado correctamente");
-      } else {
-        const newDotacion = await dotacionApi.create(formData, token);
-        const subcat = allSubcategorias.find(
-          (sc) => sc.id_subcategoria === newDotacion.id_subcategoria
-        );
-        const cat = categorias.find(
-          (c) => c.id_categoria === subcat?.id_categoria
-        );
+  try {
+    // Preparar los datos para enviar
+    const payload: DotacionData = {
+      id_subcategoria: formData.id_subcategoria,
+      descripcion: formData.descripcion,
+      stock_nuevo: formData.stock_nuevo,
+      // Campos opcionales con conversión explícita
+      ...(formData.genero && { genero: formData.genero }),
+      ...(formData.stock_reutilizable !== undefined && { 
+        stock_reutilizable: Number(formData.stock_reutilizable) 
+      }),
+      ...(formData.stock_minimo !== undefined && { 
+        stock_minimo: Number(formData.stock_minimo) 
+      }),
+      ...(formData.precio_unitario !== undefined && { 
+        precio_unitario: Number(formData.precio_unitario) 
+      }),
+    };
 
-        setDotaciones([
-          ...dotaciones,
-          {
-            ...newDotacion,
-            subcategoria: subcat?.nombre,
-            categoria: cat?.nombre,
-          },
-        ]);
-        showSuccess("Dotación registrada correctamente");
-      }
-
-      resetForm();
-    } catch (error) {
-      showError(
-        `Error al guardar los datos: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+    if (selectedDotacion?.id_dotacion) {
+      // Actualizar dotación existente
+      const updatedDotacion = await dotacionApi.update(
+        selectedDotacion.id_dotacion, 
+        payload, 
+        token
       );
+      
+      // Actualizar el estado local
+      const updatedDotaciones = dotaciones.map((d) =>
+        d.id_dotacion === selectedDotacion.id_dotacion
+          ? { ...d, ...updatedDotacion }
+          : d
+      );
+      
+      setDotaciones(updatedDotaciones);
+      showSuccess("Registro actualizado correctamente");
+    } else {
+      // Crear nueva dotación
+      const newDotacion = await dotacionApi.create(payload, token);
+      
+      // Actualizar el estado local con la nueva dotación
+      const subcat = allSubcategorias.find(
+        (sc) => sc.id_subcategoria === newDotacion.id_subcategoria
+      );
+      const cat = subcat
+        ? categorias.find((c) => c.id_categoria === subcat.id_categoria)
+        : undefined;
+
+      setDotaciones([
+        ...dotaciones,
+        {
+          ...newDotacion,
+          subcategoria: subcat?.nombre,
+          categoria: cat?.nombre,
+        },
+      ]);
+      showSuccess("Dotación registrada correctamente");
     }
-  };
+
+    resetForm();
+  } catch (error) {
+    console.error("Error al guardar:", error);
+    showError(
+      `Error al guardar los datos: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+};
 
   const handleEdit = (dotacion: Dotacion) => {
-    setFormData(dotacion);
+    setFormData({
+      id_subcategoria: dotacion.id_subcategoria,
+      descripcion: dotacion.descripcion,
+      genero: dotacion.genero,
+      stock_nuevo: dotacion.stock_nuevo,
+      stock_reutilizable: dotacion.stock_reutilizable,
+      stock_minimo: dotacion.stock_minimo,
+      precio_unitario: dotacion.precio_unitario,
+    });
+    
     setSelectedDotacion(dotacion);
 
     if (dotacion.id_subcategoria) {
@@ -253,21 +256,32 @@ const RegistrarDotacionNueva: React.FC = () => {
     setEditDialog(true);
   };
 
-  const handleDelete = async (dotacion: Dotacion) => {
-    if (!dotacion.id || !token) return;
+const handleDelete = async (dotacion: Dotacion) => {
+  if (!dotacion.id_dotacion || !token) {
+    showError("No se puede eliminar: falta información de autenticación");
+    return;
+  }
 
-    try {
-      await dotacionApi.delete(dotacion.id, token);
-      setDotaciones(dotaciones.filter((d) => d.id !== dotacion.id));
-      showSuccess("Dotación eliminada correctamente");
-    } catch (error) {
-      showError(
-        `Error al eliminar la dotación: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+  try {
+    // Confirmación antes de eliminar
+    if (!window.confirm(`¿Estás seguro de eliminar "${dotacion.descripcion}"?`)) {
+      return;
     }
-  };
+
+    // Llamada al API
+    await dotacionApi.delete(dotacion.id_dotacion, token);
+    
+    showSuccess("Dotación eliminada correctamente");
+    
+    // Actualizar el estado local sin recargar toda la data
+    setDotaciones(prev => prev.filter(d => d.id_dotacion !== dotacion.id_dotacion));
+  } catch (error) {
+    console.error("Error al eliminar:", error);
+    showError(
+      error instanceof Error ? error.message : "Error desconocido al eliminar"
+    );
+  }
+};
 
   const loadSubcategorias = (id_categoria: number) => {
     setSubcategorias(
@@ -376,7 +390,7 @@ const RegistrarDotacionNueva: React.FC = () => {
             <InputText
               type="number"
               min="0"
-              value={formData.stock_nuevo.toString()}
+              value={formData.stock_nuevo?.toString() || "0"}
               onChange={(e) =>
                 setFormData({
                   ...formData,

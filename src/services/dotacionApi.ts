@@ -1,19 +1,26 @@
-// src/services/dotacionApi.ts
-import type { DotacionData, EstadoPayload, HistorialEstado } from '../types/Dotacion';
+import type {
+  DotacionData,
+  DotacionApiResponse,
+  EstadoPayload,
+  HistorialEstado,
+  Categoria,
+  Subcategoria,
+} from "../types/Dotacion";
 
 export class DotacionApi {
-  private baseUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  private baseUrl: string =
+    import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
   private async request<T>(
     endpoint: string,
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
     token: string,
     body?: object
   ): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -27,36 +34,65 @@ export class DotacionApi {
     return response.json();
   }
 
-  getAll(token: string) {
-    return this.request<DotacionData[]>('/dotaciones', 'GET', token);
+  // 🔹 Obtener todas las dotaciones
+  getAll(token: string): Promise<DotacionApiResponse[]> {
+    return this.request("/dotaciones", "GET", token);
   }
 
-  getCategorias(token: string) {
-    return this.request<string[]>('/dotaciones/categorias', 'GET', token);
+  // 🔹 Obtener categorías
+  getCategorias(token: string): Promise<Categoria[]> {
+    return this.request("/dotaciones/categorias", "GET", token);
   }
 
-  getSubcategorias(token: string) {
-    return this.request<string[]>('/dotaciones/subcategorias', 'GET', token);
+  // 🔹 Obtener subcategorías
+  getSubcategorias(token: string): Promise<Subcategoria[]> {
+    return this.request("/dotaciones/subcategorias", "GET", token);
   }
 
-  create(data: DotacionData, token: string) {
-    return this.request<{ id: number }>('/dotaciones', 'POST', token, data);
+  // 🔹 Crear nueva dotación
+  create(data: DotacionData, token: string): Promise<DotacionApiResponse> {
+    return this.request("/dotaciones", "POST", token, data);
   }
 
-  update(id: number, data: DotacionData, token: string) {
-    return this.request<{ ok: boolean }>(`/dotaciones/${id}`, 'PUT', token, data);
+  // 🔹 Actualizar dotación existente
+  update(
+    id_dotacion: number,
+    data: DotacionData,
+    token: string
+  ): Promise<{ ok: boolean }> {
+    return this.request(`/dotaciones/${id_dotacion}`, "PUT", token, data);
   }
 
-  delete(id: number, token: string) {
-    return this.request<{ ok: boolean }>(`/dotaciones/${id}`, 'DELETE', token);
+  // 🔹 Eliminar dotación
+  // dotacionApi.ts
+  delete(id_dotacion: number, token: string): Promise<{ ok: boolean }> {
+    return this.request(
+      `/dotaciones/${id_dotacion}`,
+      "DELETE",
+      token
+      // No enviar body en DELETE
+    );
   }
-
-  changeStatus(id: number, estado: string, token: string) {
+  // 🔹 Cambiar estado de dotación
+  changeStatus(
+    id_dotacion: number,
+    estado: EstadoPayload["estado"],
+    token: string
+  ): Promise<{ ok: boolean }> {
     const payload: EstadoPayload = { estado };
-    return this.request<{ ok: boolean }>(`/dotaciones/${id}/estado`, 'PATCH', token, payload);
+    return this.request(
+      `/dotaciones/${id_dotacion}/estado`,
+      "PATCH",
+      token,
+      payload
+    );
   }
 
-  getStatusHistory(id: number, token: string) {
-    return this.request<HistorialEstado[]>(`/dotaciones/${id}/historial`, 'GET', token);
+  // 🔹 Obtener historial de estados
+  getStatusHistory(
+    id_dotacion: number,
+    token: string
+  ): Promise<HistorialEstado[]> {
+    return this.request(`/dotaciones/${id_dotacion}/historial`, "GET", token);
   }
 }
