@@ -1,9 +1,8 @@
-import express from 'express';
-import DotacionController from '../controllers/dotacion.controller';
-import { check } from 'express-validator';
-import { verifyToken, isAdmin } from '../middlewares/auth.middleware';
-
+const express = require('express');
 const router = express.Router();
+const { check } = require('express-validator');
+const { verifyToken, isSuperAdmin } = require('../middleware/auth.middleware');
+const dotacionController = require('../controllers/dotacion.controller');
 
 // Validaciones
 const createUpdateValidations = [
@@ -16,37 +15,28 @@ const createUpdateValidations = [
   check('precio_unitario').optional().isFloat({ min: 0 })
 ];
 
-// Rutas
-router.get('/', verifyToken, DotacionController.getAll);
-router.get('/categorias', verifyToken, DotacionController.getCategorias);
-router.get('/subcategorias', verifyToken, DotacionController.getSubcategorias);
+// Rutas protegidas
+router.get('/', verifyToken, dotacionController.getAll);
+router.get('/categorias', verifyToken, dotacionController.getCategorias);
+router.get('/subcategorias', verifyToken, dotacionController.getSubcategorias);
+router.get('/:id', verifyToken, dotacionController.getById);
 
 router.post(
   '/',
   verifyToken,
-  isAdmin,
+  isSuperAdmin,
   createUpdateValidations,
-  DotacionController.create
+  dotacionController.create
 );
 
-router.get('/:id', verifyToken, DotacionController.getById);
 router.put(
   '/:id',
   verifyToken,
-  isAdmin,
+  isSuperAdmin,
   createUpdateValidations,
-  DotacionController.update
+  dotacionController.update
 );
 
-router.patch(
-  '/:id/estado',
-  verifyToken,
-  isAdmin,
-  [check('estado').isIn(['nuevo', 'reutilizable', 'dañado', 'devuelto'])],
-  DotacionController.changeStatus
-);
+router.delete('/:id', verifyToken, isSuperAdmin, dotacionController.remove);
 
-router.get('/:id/historial', verifyToken, DotacionController.getStatusHistory);
-router.delete('/:id', verifyToken, isAdmin, DotacionController.delete);
-
-export default router;
+module.exports = router;

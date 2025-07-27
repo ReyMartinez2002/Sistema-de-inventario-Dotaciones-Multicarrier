@@ -1,89 +1,84 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
-import { Calendar } from "primereact/calendar";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { addLocale } from "primereact/api";
+import { DotacionApi } from "../services/dotacionApi";
+import { useAuth } from "../contex/useAuth";
 import "./styles/RegistrarDotacionNueva.css";
 
-interface DotacionNueva {
+interface Dotacion {
   id?: number;
-  producto: string;
-  tipo: string;
-  color: string;
-  talla: string;
-  cantidad: number;
-  fechaIngreso: Date | null;
+  id_subcategoria: number;
   descripcion: string;
+  genero?: string;
+  stock_nuevo: number;
+  stock_reutilizable?: number;
+  stock_minimo?: number;
+  precio_unitario?: number;
+  fecha_creacion?: string;
+  subcategoria?: string;
+  categoria?: string;
 }
 
-const productos = [
-  { label: "Calzado de Goma", value: "calzado" },
-  { label: "Pantalón", value: "pantalon" },
-  { label: "Camisa tipo Polo", value: "camisa" },
-  { label: "Chaqueta Hombre", value: "chaqueta" },
-  { label: "Botas", value: "botas" },
-  { label: "Gorra", value: "gorra" },
-];
+interface Categoria {
+  id_categoria: number;
+  nombre: string;
+}
 
-const tiposPorProducto: Record<string, string[]> = {
-  calzado: ["Blanco", "Negro"],
-  pantalon: [
-    "Hombres Multicarrier",
-    "Hombres Yapaya",
-    "Mujeres Multicarrier",
-  ],
-  camisa: [
-    "Hombres (Multicarrier)",
-    "Hombres (Yapaya)",
-    "Hombres (Supervisor)",
-    "Mujeres (Multicarrier)",
-  ],
-  chaqueta: [
-    "Gruesa (Multicarrier)",
-    "Delgada (Multicarrier)",
-    "Yapaya",
-    "Supervisor",
-  ],
-  botas: ["Con punta de acero", "Sin punta de acero"],
-  gorra: ["Multicarrier", "Yapaya"],
-};
+interface Subcategoria {
+  id_subcategoria: number;
+  id_categoria: number;
+  nombre: string;
+}
 
-const tallasPorProducto: Record<string, string[]> = {
-  calzado: ["35","36", "37", "38", "39", "40", "41", "42", "43", "44"],
-  pantalon: ["28","30", "32", "34", "36", "38", "40", "42", "44"],
-  camisa: ["XS", "S", "M", "L", "XL", "XXL"],
-  chaqueta: ["XS", "S", "M", "L", "XL", "XXL"],
-  botas: ["35","36", "37", "38", "39", "40", "41", "42", "43", "44"],
-  gorra: ["Única"],
-};
-
-let idCounter = 1;
+interface DotacionApiResponse {
+  id: number;
+  id_subcategoria: number;
+  descripcion: string;
+  genero?: string;
+  stock_nuevo: number;
+  stock_reutilizable?: number;
+  stock_minimo?: number;
+  precio_unitario?: number;
+  fecha_creacion?: string;
+}
 
 const RegistrarDotacionNueva: React.FC = () => {
-  const [formData, setFormData] = useState<DotacionNueva>({
-    producto: "",
-    tipo: "",
-    color: "",
-    talla: "",
-    cantidad: 1,
-    fechaIngreso: null,
+  const { token } = useAuth();
+  const dotacionApi = useRef(new DotacionApi()).current;
+  const [formData, setFormData] = useState<Dotacion>({
+    id_subcategoria: 0,
     descripcion: "",
+    stock_nuevo: 1,
   });
-  const [dotaciones, setDotaciones] = useState<DotacionNueva[]>([]);
+  const [dotaciones, setDotaciones] = useState<Dotacion[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
+  const [allSubcategorias, setAllSubcategorias] = useState<Subcategoria[]>([]);
   const [editDialog, setEditDialog] = useState(false);
   const [registerDialog, setRegisterDialog] = useState(false);
-  const [selectedDotacion, setSelectedDotacion] = useState<DotacionNueva | null>(null);
+  const [selectedDotacion, setSelectedDotacion] = useState<Dotacion | null>(
+    null
+  );
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const toast = useRef<Toast>(null);
 
   addLocale("es", {
     firstDayOfWeek: 1,
-    dayNames: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+    dayNames: [
+      "domingo",
+      "lunes",
+      "martes",
+      "miércoles",
+      "jueves",
+      "viernes",
+      "sábado",
+    ],
     dayNamesShort: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
     dayNamesMin: ["D", "L", "M", "X", "J", "V", "S"],
     monthNames: [
@@ -100,86 +95,363 @@ const RegistrarDotacionNueva: React.FC = () => {
       "noviembre",
       "diciembre",
     ],
-    monthNamesShort: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+    monthNamesShort: [
+      "ene",
+      "feb",
+      "mar",
+      "abr",
+      "may",
+      "jun",
+      "jul",
+      "ago",
+      "sep",
+      "oct",
+      "nov",
+      "dic",
+    ],
     today: "Hoy",
     clear: "Limpiar",
   });
 
-  const handleSubmit = () => {
-    if (!formData.producto || !formData.tipo || !formData.cantidad || !formData.fechaIngreso) {
-      toast.current?.show({
-        severity: "warn",
-        summary: "Campos requeridos",
-        detail: "Por favor, completa los campos obligatorios",
-        life: 3000,
-      });
+  const showError = useCallback((message: string) => {
+    toast.current?.show({
+      severity: "error",
+      summary: "Error",
+      detail: message,
+      life: 3000,
+    });
+  }, []);
+
+  const showSuccess = useCallback((message: string) => {
+    toast.current?.show({
+      severity: "success",
+      summary: "Éxito",
+      detail: message,
+      life: 3000,
+    });
+  }, []);
+
+  const loadData = useCallback(async () => {
+    if (!token) {
+      showError("No estás autenticado");
       return;
     }
 
-    const dataToSave = { ...formData, id: selectedDotacion?.id || idCounter++ };
-    if (selectedDotacion) {
-      setDotaciones(dotaciones.map(d => (d.id === selectedDotacion.id ? dataToSave : d)));
-      toast.current?.show({ severity: "success", summary: "Actualizado", detail: "Registro editado" });
-    } else {
-      setDotaciones([...dotaciones, dataToSave]);
-      toast.current?.show({ severity: "success", summary: "Registrado", detail: "Dotación registrada" });
+    try {
+      const [dotacionesData, categoriasData, subcategoriasData] =
+        await Promise.all([
+          dotacionApi.getAll(token),
+          dotacionApi.getCategorias(token),
+          dotacionApi.getSubcategorias(token),
+        ]);
+
+      setDotaciones(
+        dotacionesData.map((d: DotacionApiResponse) => {
+          const subcat = subcategoriasData.find(
+            (sc: Subcategoria) => sc.id_subcategoria === d.id_subcategoria
+          );
+          const cat = categoriasData.find(
+            (c: Categoria) => c.id_categoria === subcat?.id_categoria
+          );
+
+          return {
+            ...d,
+            subcategoria: subcat?.nombre,
+            categoria: cat?.nombre,
+          };
+        })
+      );
+
+      setCategorias(categoriasData);
+      setAllSubcategorias(subcategoriasData);
+    } catch (error) {
+      showError(
+        `Error al cargar datos: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }, [token, dotacionApi, showError]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleSubmit = async () => {
+    if (!token) {
+      showError("No estás autenticado");
+      return;
     }
 
-    setFormData({ producto: "", tipo: "", color: "", talla: "", cantidad: 1, fechaIngreso: null, descripcion: "" });
+    if (
+      !formData.id_subcategoria ||
+      !formData.descripcion ||
+      !formData.stock_nuevo
+    ) {
+      showError("Por favor, completa los campos obligatorios");
+      return;
+    }
+
+    try {
+      if (selectedDotacion?.id) {
+        await dotacionApi.update(selectedDotacion.id, formData, token);
+        setDotaciones(
+          dotaciones.map((d) =>
+            d.id === selectedDotacion.id
+              ? { ...formData, id: selectedDotacion.id }
+              : d
+          )
+        );
+        showSuccess("Registro actualizado correctamente");
+      } else {
+        const newDotacion = await dotacionApi.create(formData, token);
+        const subcat = allSubcategorias.find(
+          (sc) => sc.id_subcategoria === newDotacion.id_subcategoria
+        );
+        const cat = categorias.find(
+          (c) => c.id_categoria === subcat?.id_categoria
+        );
+
+        setDotaciones([
+          ...dotaciones,
+          {
+            ...newDotacion,
+            subcategoria: subcat?.nombre,
+            categoria: cat?.nombre,
+          },
+        ]);
+        showSuccess("Dotación registrada correctamente");
+      }
+
+      resetForm();
+    } catch (error) {
+      showError(
+        `Error al guardar los datos: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  };
+
+  const handleEdit = (dotacion: Dotacion) => {
+    setFormData(dotacion);
+    setSelectedDotacion(dotacion);
+
+    if (dotacion.id_subcategoria) {
+      const subcat = allSubcategorias.find(
+        (sc) => sc.id_subcategoria === dotacion.id_subcategoria
+      );
+      if (subcat) {
+        setSubcategorias(
+          allSubcategorias.filter(
+            (sc) => sc.id_categoria === subcat.id_categoria
+          )
+        );
+      }
+    }
+
+    setEditDialog(true);
+  };
+
+  const handleDelete = async (dotacion: Dotacion) => {
+    if (!dotacion.id || !token) return;
+
+    try {
+      await dotacionApi.delete(dotacion.id, token);
+      setDotaciones(dotaciones.filter((d) => d.id !== dotacion.id));
+      showSuccess("Dotación eliminada correctamente");
+    } catch (error) {
+      showError(
+        `Error al eliminar la dotación: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  };
+
+  const loadSubcategorias = (id_categoria: number) => {
+    setSubcategorias(
+      allSubcategorias.filter((sc) => sc.id_categoria === id_categoria)
+    );
+    setFormData({ ...formData, id_subcategoria: 0 });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      id_subcategoria: 0,
+      descripcion: "",
+      stock_nuevo: 1,
+    });
     setSelectedDotacion(null);
     setRegisterDialog(false);
     setEditDialog(false);
   };
 
-  const handleEdit = (dotacion: DotacionNueva) => {
-    setFormData(dotacion);
-    setSelectedDotacion(dotacion);
-    setEditDialog(true);
+  const getCurrentCategoriaId = () => {
+    if (formData.id_subcategoria) {
+      const subcat = allSubcategorias.find(
+        (sc) => sc.id_subcategoria === formData.id_subcategoria
+      );
+      return subcat?.id_categoria || 0;
+    }
+    return 0;
   };
 
-  const handleDelete = (dotacion: DotacionNueva) => {
-    setDotaciones(dotaciones.filter(d => d.id !== dotacion.id));
-    toast.current?.show({ severity: "info", summary: "Eliminado", detail: "Dotación eliminada" });
-  };
-
-  const tipos = tiposPorProducto[formData.producto] || [];
-  const tallas = tallasPorProducto[formData.producto] || [];
-
-  const renderForm = (dialogTitle: string, visible: boolean, onHide: () => void) => (
-    <Dialog visible={visible} onHide={onHide} header={dialogTitle} className="modal-form" style={{ width: '60vw' }} modal>
+  const renderForm = (
+    dialogTitle: string,
+    visible: boolean,
+    onHide: () => void
+  ) => (
+    <Dialog
+      visible={visible}
+      onHide={onHide}
+      header={dialogTitle}
+      className="modal-form"
+      style={{ width: "60vw" }}
+      modal
+    >
       <div className="p-fluid">
         <div className="formgrid grid">
           <div className="field col-12 md:col-6">
-            <label>Producto</label>
-            <Dropdown value={formData.producto} options={productos} onChange={e => setFormData({ ...formData, producto: e.value, tipo: "", talla: "" })} placeholder="Seleccione un producto" />
+            <label>Categoría *</label>
+            <Dropdown
+              value={getCurrentCategoriaId()}
+              options={[
+                { label: "Seleccione categoría", value: 0 },
+                ...categorias.map((c) => ({
+                  label: c.nombre,
+                  value: c.id_categoria,
+                })),
+              ]}
+              onChange={(e) => loadSubcategorias(e.value)}
+              placeholder="Seleccione categoría"
+            />
           </div>
           <div className="field col-12 md:col-6">
-            <label>Tipo</label>
-            <Dropdown value={formData.tipo} options={tipos.map(t => ({ label: t, value: t }))} onChange={e => setFormData({ ...formData, tipo: e.value })} placeholder="Seleccione tipo" disabled={!formData.producto} />
+            <label>Subcategoría *</label>
+            <Dropdown
+              value={formData.id_subcategoria}
+              options={[
+                { label: "Seleccione subcategoría", value: 0 },
+                ...subcategorias.map((sc) => ({
+                  label: sc.nombre,
+                  value: sc.id_subcategoria,
+                })),
+              ]}
+              onChange={(e) =>
+                setFormData({ ...formData, id_subcategoria: e.value })
+              }
+              placeholder="Seleccione subcategoría"
+              disabled={subcategorias.length === 0}
+            />
+          </div>
+          <div className="field col-12">
+            <label>Descripción *</label>
+            <InputText
+              value={formData.descripcion}
+              onChange={(e) =>
+                setFormData({ ...formData, descripcion: e.target.value })
+              }
+              placeholder="Descripción del producto"
+            />
+          </div>
+          <div className="field col-12 md:col-4">
+            <label>Género</label>
+            <Dropdown
+              value={formData.genero || ""}
+              options={[
+                { label: "Seleccione género", value: "" },
+                { label: "Masculino", value: "M" },
+                { label: "Femenino", value: "F" },
+                { label: "Unisex", value: "U" },
+              ]}
+              onChange={(e) =>
+                setFormData({ ...formData, genero: e.value || undefined })
+              }
+              placeholder="Seleccione género"
+            />
+          </div>
+          <div className="field col-12 md:col-4">
+            <label>Stock Nuevo *</label>
+            <InputText
+              type="number"
+              min="0"
+              value={formData.stock_nuevo.toString()}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  stock_nuevo: parseInt(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
+          <div className="field col-12 md:col-4">
+            <label>Stock Reutilizable</label>
+            <InputText
+              type="number"
+              min="0"
+              value={formData.stock_reutilizable?.toString() || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  stock_reutilizable: e.target.value
+                    ? parseInt(e.target.value)
+                    : undefined,
+                })
+              }
+              placeholder="Opcional"
+            />
           </div>
           <div className="field col-12 md:col-6">
-            <label>Color</label>
-            <InputText value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} placeholder="Ingrese el color" />
-            <small className="text-muted">Puedes ingresar un color nuevo</small>
+            <label>Stock Mínimo</label>
+            <InputText
+              type="number"
+              min="0"
+              value={formData.stock_minimo?.toString() || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  stock_minimo: e.target.value
+                    ? parseInt(e.target.value)
+                    : undefined,
+                })
+              }
+              placeholder="Opcional"
+            />
           </div>
           <div className="field col-12 md:col-6">
-            <label>Talla</label>
-            <Dropdown value={formData.talla} options={tallas.map(t => ({ label: t, value: t }))} onChange={e => setFormData({ ...formData, talla: e.value })} placeholder="Seleccione talla" disabled={!formData.producto} />
-          </div>
-          <div className="field col-12 md:col-4">
-            <label>Cantidad</label>
-            <InputText type="number" value={formData.cantidad.toString()} onChange={e => setFormData({ ...formData, cantidad: parseInt(e.target.value)}) } />
-          </div>
-          <div className="field col-12 md:col-4">
-            <label>Fecha de Ingreso</label>
-            <Calendar value={formData.fechaIngreso} onChange={e => setFormData({ ...formData, fechaIngreso: e.value as Date })} locale="es" showIcon dateFormat="dd/mm/yy" />
-          </div>
-          <div className="field col-12 md:col-4">
-            <label>Descripción</label>
-            <InputText value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} placeholder="Opcional" />
+            <label>Precio Unitario</label>
+            <InputText
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.precio_unitario?.toString() || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  precio_unitario: e.target.value
+                    ? parseFloat(e.target.value)
+                    : undefined,
+                })
+              }
+              placeholder="Opcional"
+            />
           </div>
         </div>
-        <Button label="Guardar" icon="pi pi-check" onClick={handleSubmit} className="p-button-success mt-3" />
+        <div className="flex justify-content-end mt-3">
+          <Button
+            label="Cancelar"
+            icon="pi pi-times"
+            onClick={onHide}
+            className="p-button-text btn-cancelar"
+          />
+          <Button
+            label="Guardar"
+            icon="pi pi-check"
+            onClick={handleSubmit}
+            className="p-button-success ml-2"
+          />
+        </div>
       </div>
     </Dialog>
   );
@@ -189,34 +461,101 @@ const RegistrarDotacionNueva: React.FC = () => {
       <Toast ref={toast} />
       <div className="card">
         <div className="flex justify-content-between align-items-center mb-3">
-          <h3 className="Titulo-gestion-dotaciones" style={{ color: "#cd1818" }}>Gestión de Dotaciones Nuevas</h3>
-          <Button label="Registrar Nueva" icon="pi pi-plus icon-pi-plus" className="p-button-danger btn-registrar-nueva-dotacion" onClick={() => setRegisterDialog(true)} />
+          <h3
+            className="Titulo-gestion-dotaciones"
+            style={{ color: "#cd1818" }}
+          >
+            Gestión de Dotaciones
+          </h3>
+          <Button
+            label="Registrar Nueva"
+            icon="pi pi-plus"
+            className="p-button-danger"
+            onClick={() => {
+              setSubcategorias([]);
+              setRegisterDialog(true);
+            }}
+          />
         </div>
-        <span className="p-input-icon-left mb-3">
-          <i className="pi pi-search" />
-          <InputText className="input-buscar" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} placeholder="Buscar en registros..." />
-        </span>
-        <DataTable value={dotaciones} paginator rows={5} responsiveLayout="scroll" globalFilter={globalFilter} filterDisplay="menu">
-          <Column field="producto" header="Producto" sortable filter />
-          <Column field="tipo" header="Tipo" sortable filter />
-          <Column field="color" header="Color" filter />
-          <Column field="talla" header="Talla" filter />
-          <Column field="cantidad" header="Cantidad" />
-          <Column field="fechaIngreso" header="Ingreso" body={d => d.fechaIngreso?.toLocaleDateString("es-CO") ?? ""} />
+
+        <div className="mb-3">
+          <span className="p-input-icon-left w-full">
+            <i className="pi pi-search" />
+            <InputText
+              className="w-full"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Buscar en registros..."
+            />
+          </span>
+        </div>
+
+        <DataTable
+          value={dotaciones}
+          paginator
+          rows={10}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
+          paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+          responsiveLayout="scroll"
+          globalFilter={globalFilter}
+          emptyMessage="No se encontraron dotaciones"
+          loading={dotaciones.length === 0 && globalFilter === ""}
+        >
+          <Column field="categoria" header="Categoría" sortable filter />
+          <Column field="subcategoria" header="Subcategoría" sortable filter />
+          <Column field="descripcion" header="Descripción" sortable filter />
+          <Column
+            field="genero"
+            header="Género"
+            sortable
+            body={(data) => {
+              switch (data.genero) {
+                case "M":
+                  return "Masculino";
+                case "F":
+                  return "Femenino";
+                case "U":
+                  return "Unisex";
+                default:
+                  return "-";
+              }
+            }}
+          />
+          <Column field="stock_nuevo" header="Stock Nuevo" sortable />
+          <Column
+            field="stock_reutilizable"
+            header="Stock Reutilizable"
+            sortable
+            body={(data) => data.stock_reutilizable || "-"}
+          />
           <Column
             header="Acciones"
-            body={rowData => (
-              <>
-                <Button icon="pi pi-pencil" className="p-button-rounded p-button-text" onClick={() => handleEdit(rowData)} />
-                <Button icon="pi pi-trash" className="p-button-rounded p-button-text p-button-danger" onClick={() => handleDelete(rowData)} />
-              </>
+            body={(rowData) => (
+              <div className="flex gap-2">
+                <Button
+                  icon="pi pi-pencil"
+                  className="p-button-rounded p-button-text p-button-primary"
+                  tooltip="Editar"
+                  tooltipOptions={{ position: "top" }}
+                  onClick={() => handleEdit(rowData)}
+                />
+                <Button
+                  icon="pi pi-trash"
+                  className="p-button-rounded p-button-text p-button-danger"
+                  tooltip="Eliminar"
+                  tooltipOptions={{ position: "top" }}
+                  onClick={() => handleDelete(rowData)}
+                />
+              </div>
             )}
+            style={{ width: "120px" }}
           />
         </DataTable>
       </div>
 
-      {renderForm("Registrar Dotación", registerDialog, () => setRegisterDialog(false))}
-      {renderForm("Editar Dotación", editDialog, () => setEditDialog(false))}
+      {renderForm("Registrar Nueva Dotación", registerDialog, resetForm)}
+      {renderForm("Editar Dotación", editDialog, resetForm)}
     </div>
   );
 };

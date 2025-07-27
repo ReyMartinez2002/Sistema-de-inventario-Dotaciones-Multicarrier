@@ -8,7 +8,8 @@ const path = require('path');
 
 // Importación de rutas
 const authRoutes = require('./routes/auth.routes');
-const users = require('./routes/users'); // <-- Asegúrate del nombre del archivo
+const users = require('./routes/users');
+const dotacionRoutes = require('./routes/dotacion.routes');
 
 // Middlewares
 const { errorHandler } = require('./middleware/error.middleware');
@@ -63,6 +64,7 @@ apiRouter.get('/health', (req, res) => {
 // Rutas protegidas
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/users', users);
+apiRouter.use('/dotaciones', dotacionRoutes);
 
 // Montar todas las rutas bajo /api
 app.use('/api', apiRouter);

@@ -25,7 +25,7 @@ const create = async (req, res) => {
     await Auditoria.logAction({
       id_usuario: req.usuario.id_usuario,
       accion: 'CREAR',
-      descripcion: `Creación de dotación`,
+      descripcion: 'Creación de dotación',
       tabla_afectada: 'dotaciones',
       id_registro_afectado: id
     });
@@ -41,7 +41,7 @@ const update = async (req, res) => {
     await Auditoria.logAction({
       id_usuario: req.usuario.id_usuario,
       accion: 'ACTUALIZAR',
-      descripcion: `Actualización de dotación`,
+      descripcion: 'Actualización de dotación',
       tabla_afectada: 'dotaciones',
       id_registro_afectado: req.params.id
     });
@@ -67,10 +67,30 @@ const remove = async (req, res) => {
   }
 };
 
+const getCategorias = async (req, res) => {
+  try {
+    const categorias = await Dotacion.getCategorias();
+    res.json(categorias);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener categorías.' });
+  }
+};
+
+const getSubcategorias = async (req, res) => {
+  try {
+    const subcategorias = await Dotacion.getSubcategorias();
+    res.json(subcategorias);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener subcategorías.' });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
-  remove
+  remove,
+  getCategorias,
+  getSubcategorias
 };
