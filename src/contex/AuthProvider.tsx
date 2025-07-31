@@ -32,8 +32,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Limpieza completa
       setUser(null);
       localStorage.removeItem("token");
+      localStorage.removeItem("userId"); // <-- Limpia el id
       sessionStorage.removeItem("token");
-      
+      sessionStorage.removeItem("userId");
+
       // Forzar recarga completa para limpiar estados
       window.location.href = '/login?logout=success';
       
@@ -59,6 +61,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: userData.email || userData.username,
         token,
       });
+
+      // También guarda el id en localStorage/sessionStorage si no está (para Ajustes)
+      if (localStorage.getItem("token") === token) {
+        localStorage.setItem("userId", String(userData.id_usuario));
+      } else if (sessionStorage.getItem("token") === token) {
+        sessionStorage.setItem("userId", String(userData.id_usuario));
+      }
       
       // Solo redirigir si estamos en la página de login
       if (location.pathname === "/login") {
@@ -76,7 +85,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    
     const checkAuth = async () => {
       if (token) {
         await validateToken(token);
@@ -87,7 +95,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     };
-
     checkAuth();
   }, [validateToken, navigate, location]);
 
@@ -100,6 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem("token", token);
+      storage.setItem("userId", String(userData.id_usuario)); // <-- AQUÍ GUARDA EL ID
 
       setUser({
         id: userData.id_usuario,

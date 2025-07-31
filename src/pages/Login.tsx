@@ -9,37 +9,38 @@ import "./styles/Login.css";
 import icono from "../assets/Icono-casco.png";
 import { useAuth } from "../contex/useAuth";
 
-
-
 const Login: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const { login, loading, error, clearError} = useAuth();
+  const { login, loading, error, clearError } = useAuth();
 
   const location = useLocation();
 
-   useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(location.search);
-    
     // Limpiar estados solo si viene de logout
-    if (params.get('logout')) {
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
+    if (params.get("logout")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("userId");
       if (clearError) clearError();
     }
   }, [location, clearError]);
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (clearError) clearError();
-    
+
     try {
       await login(username, password, remember);
+      // El id y token ya se guardan en el AuthProvider tras login exitoso
     } catch (err) {
-      console.error('Login failed:', err);
+      console.error("Login failed:", err);
     }
   };
+
   return (
     <div className="login-root">
       <div className="login-container">
@@ -69,6 +70,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onClick={() => clearError && clearError()}
                   className="absolute right-2 top-2 text-gray-500 hover:text-gray-700"
                   aria-label="Close"
+                  type="button"
                 >
                   <i className="pi pi-times" />
                 </button>

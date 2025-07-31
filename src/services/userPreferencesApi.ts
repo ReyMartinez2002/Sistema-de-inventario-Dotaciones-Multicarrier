@@ -57,7 +57,12 @@ export class UserApi {
   }
 
   // Cambiar solo contraseña (endpoint dedicado)
-  async updatePassword(id: number, contraseñaActual: string, nuevaContraseña: string, token: string) {
+  async updatePassword(
+    id: number,
+    contraseñaActual: string,
+    nuevaContraseña: string,
+    token: string
+  ) {
     const response = await fetch(`${this.baseUrl}/users/${id}/password`, {
       method: "PUT",
       headers: {
@@ -66,8 +71,9 @@ export class UserApi {
       },
       body: JSON.stringify({ contraseñaActual, nuevaContraseña }),
     });
-    if (!response.ok) throw new Error("Error al cambiar contraseña");
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Error al cambiar contraseña");
+    return data;
   }
 
   // Guardar preferencias del usuario

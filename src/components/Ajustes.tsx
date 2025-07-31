@@ -16,8 +16,12 @@ import { UserApi } from "../services/userPreferencesApi";
 import "./styles/Ajustes.css";
 
 // Obtén el id y token del usuario autenticado (ajusta según tu auth real)
-const userId = Number(localStorage.getItem("userId"));
-const token = localStorage.getItem("token") || "";
+const userId =
+  Number(localStorage.getItem("userId")) ||
+  Number(sessionStorage.getItem("userId")) ||
+  0;
+const token =
+  localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 const api = new UserApi();
 
 const IDIOMAS = [
@@ -88,12 +92,20 @@ const Ajustes: React.FC = () => {
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credenciales.correo)) {
-      showToast("error", "Correo inválido", "Ingrese un correo electrónico válido");
+      showToast(
+        "error",
+        "Correo inválido",
+        "Ingrese un correo electrónico válido"
+      );
       return;
     }
     try {
       await api.updateEmail(userId, credenciales.correo, token);
-      showToast("success", "Correo actualizado", "El correo fue cambiado correctamente");
+      showToast(
+        "success",
+        "Correo actualizado",
+        "El correo fue cambiado correctamente"
+      );
       handleCredencialChange("correo", "");
       togglePanel("emailPanel");
     } catch (err) {
@@ -103,45 +115,56 @@ const Ajustes: React.FC = () => {
 
   // Cambia solo contraseña
   const cambiarContraseña = useCallback(async () => {
-    const { contraseñaActual, nuevaContraseña, confirmarContraseña } =
-      credenciales;
-    if (!contraseñaActual || !nuevaContraseña || !confirmarContraseña) {
-      showToast("warn", "Campos incompletos", "Debe llenar todos los campos");
-      return;
+  const { contraseñaActual, nuevaContraseña, confirmarContraseña } = credenciales;
+  if (!contraseñaActual || !nuevaContraseña || !confirmarContraseña) {
+    showToast("warn", "Campos incompletos", "Debe llenar todos los campos");
+    return;
+  }
+  if (nuevaContraseña.length < 8) {
+    showToast(
+      "error",
+      "Contraseña débil",
+      "La contraseña debe tener al menos 8 caracteres"
+    );
+    return;
+  }
+  if (nuevaContraseña !== confirmarContraseña) {
+    showToast(
+      "error",
+      "Contraseñas no coinciden",
+      "Las contraseñas ingresadas no son iguales"
+    );
+    return;
+  }
+  try {
+    await api.updatePassword(userId, contraseñaActual, nuevaContraseña, token);
+    showToast("success", "Contraseña cambiada", "Contraseña actualizada con éxito");
+    handleCredencialChange("contraseñaActual", "");
+    handleCredencialChange("nuevaContraseña", "");
+    handleCredencialChange("confirmarContraseña", "");
+    togglePanel("passwordPanel");
+  } catch (err: unknown) {
+    let mensaje = "No se pudo cambiar la contraseña";
+    if (err instanceof Error && err.message) {
+      mensaje = err.message;
     }
-    if (nuevaContraseña.length < 8) {
-      showToast(
-        "error",
-        "Contraseña débil",
-        "La contraseña debe tener al menos 8 caracteres"
-      );
-      return;
-    }
-    if (nuevaContraseña !== confirmarContraseña) {
-      showToast(
-        "error",
-        "Contraseñas no coinciden",
-        "Las contraseñas ingresadas no son iguales"
-      );
-      return;
-    }
-    try {
-      await api.updatePassword(userId, contraseñaActual, nuevaContraseña, token);
-      showToast("success", "Contraseña cambiada", "Contraseña actualizada con éxito");
-      handleCredencialChange("contraseñaActual", "");
-      handleCredencialChange("nuevaContraseña", "");
-      handleCredencialChange("confirmarContraseña", "");
-      togglePanel("passwordPanel");
-    } catch (err) {
-      showToast("error", "Error", "No se pudo cambiar la contraseña" + err);
-    }
-  }, [credenciales, handleCredencialChange]);
+    showToast("error", "Error", mensaje);
+  }
+}, [credenciales, handleCredencialChange]);
 
   // Guardar preferencias generales
   const guardarPreferencias = async () => {
     try {
-      await api.updatePreferences(userId, preferencias as PreferenciasPayload, token);
-      showToast("success", "Preferencias guardadas", "Tus preferencias han sido actualizadas");
+      await api.updatePreferences(
+        userId,
+        preferencias as PreferenciasPayload,
+        token
+      );
+      showToast(
+        "success",
+        "Preferencias guardadas",
+        "Tus preferencias han sido actualizadas"
+      );
     } catch {
       showToast("error", "Error", "No se pudo guardar la configuración");
     }
@@ -163,7 +186,11 @@ const Ajustes: React.FC = () => {
   );
 
   return (
-    <div className={classNames("settings-container", { "dark-mode": preferencias.modoOscuro })}>
+    <div
+      className={classNames("settings-container", {
+        "dark-mode": preferencias.modoOscuro,
+      })}
+    >
       <Toast ref={toast} position="top-right" />
       <div className="p-grid p-justify-center">
         <div className="p-col-12 p-lg-10 p-xl-8">
@@ -347,14 +374,14 @@ const Ajustes: React.FC = () => {
                             inputId="tema"
                             checked={preferencias.modoOscuro}
                             onChange={(e: CheckboxChangeEvent) =>
-                              handlePreferenciaChange(
-                                "modoOscuro",
-                                !!e.checked
-                              )
+                              handlePreferenciaChange("modoOscuro", !!e.checked)
                             }
                             className="mr-2"
                           />
-                          <label htmlFor="tema" className="font-medium text-700">
+                          <label
+                            htmlFor="tema"
+                            className="font-medium text-700"
+                          >
                             Modo oscuro
                           </label>
                         </div>
@@ -382,7 +409,10 @@ const Ajustes: React.FC = () => {
                             }
                             className="mr-2"
                           />
-                          <label htmlFor="notif" className="font-medium text-700">
+                          <label
+                            htmlFor="notif"
+                            className="font-medium text-700"
+                          >
                             Recibir notificaciones por correo
                           </label>
                         </div>

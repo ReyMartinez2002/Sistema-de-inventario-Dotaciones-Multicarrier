@@ -110,29 +110,29 @@ const UserModel = {
    * @returns {Promise<object|null>} Usuario encontrado o null
    */
   findById: async (id_usuario) => {
-    try {
-      if (!id_usuario || isNaN(Number(id_usuario))) {
-        throw new Error('ID de usuario inválido');
-      }
-
-      const [rows] = await pool.query(
-        `SELECT id_usuario, username, nombre, rol, id_rol, estado, fecha_creacion
-         FROM usuarios_login 
-         WHERE id_usuario = ? LIMIT 1`,
-        [id_usuario]
-      );
-      
-      if (!rows[0]) return null;
-      
-      return {
-        ...rows[0],
-        estado: rows[0].estado === 'activo' // Convertir a booleano
-      };
-    } catch (error) {
-      logger.error(`Error en findById: ${error.message}`, { id_usuario });
-      throw error;
+  try {
+    if (!id_usuario || isNaN(Number(id_usuario))) {
+      throw new Error('ID de usuario inválido');
     }
-  },
+
+    const [rows] = await pool.query(
+      `SELECT id_usuario, username, password_hash, nombre, rol, id_rol, estado, fecha_creacion
+       FROM usuarios_login 
+       WHERE id_usuario = ? LIMIT 1`,
+      [id_usuario]
+    );
+    
+    if (!rows[0]) return null;
+    
+    return {
+      ...rows[0],
+      estado: rows[0].estado === 'activo'
+    };
+  } catch (error) {
+    logger.error(`Error en findById: ${error.message}`, { id_usuario });
+    throw error;
+  }
+},
 
   /**
    * Registra un intento de login en el historial
