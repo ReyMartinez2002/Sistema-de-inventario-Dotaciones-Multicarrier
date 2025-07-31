@@ -1,59 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
-import { Tag } from 'primereact/tag';
+import { fetchRoles, createRole, updateRole } from '../../services/roleApi';
+import type { Role } from '../../services/roleApi';
 
-const RolesPermisos = () => {
-  const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [visibleDialog, setVisibleDialog] = useState(false);
-  const [rolEdit, setRolEdit] = useState(null);
-  const [nombreRol, setNombreRol] = useState('');
-  const [descripcionRol, setDescripcionRol] = useState('');
-  const toast = React.useRef(null);
+const RolesPermisos: React.FC = () => {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [visibleDialog, setVisibleDialog] = useState<boolean>(false);
+  const [rolEdit, setRolEdit] = useState<Role | null>(null);
+  const [nombreRol, setNombreRol] = useState<string>('');
+  const [descripcionRol, setDescripcionRol] = useState<string>('');
+  const toast = useRef<Toast>(null);
 
-  // Simulación de datos - en una app real esto vendría de tu API
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        // Simulando llamada a API
-        const data = [
-          { id_rol: 1, nombre: 'superadmin', descripcion: 'Acceso total y creación de usuarios' },
-          { id_rol: 2, nombre: 'admin', descripcion: 'Gestión completa de dotaciones y empleados, pero no usuarios' },
-          { id_rol: 3, nombre: 'viewer', descripcion: 'Solo visualización y descarga de reportes' }
-        ];
-        setRoles(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching roles:', error);
-        setLoading(false);
+  // Cargar roles desde la API
+  const cargarRoles = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchRoles();
+      setRoles(data);
+    } catch (error: unknown) {
+      let msg = 'No se pudo cargar la lista de roles';
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: string }).message === 'string'
+      ) {
+        msg = (error as { message?: string }).message!;
       }
-    };
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: msg,
+        life: 3000
+      });
+    }
+    setLoading(false);
+  };
 
-    fetchRoles();
+  useEffect(() => {
+    cargarRoles();
   }, []);
 
-  const openNew = () => {
+  const openNew = (): void => {
     setRolEdit(null);
     setNombreRol('');
     setDescripcionRol('');
     setVisibleDialog(true);
   };
 
-  const openEdit = (rol) => {
+  const openEdit = (rol: Role): void => {
     setRolEdit(rol);
     setNombreRol(rol.nombre);
     setDescripcionRol(rol.descripcion);
     setVisibleDialog(true);
   };
 
-  const saveRol = () => {
+  const saveRol = async (): Promise<void> => {
     if (!nombreRol.trim()) {
-      toast.current.show({
+      toast.current?.show({
         severity: 'error',
         summary: 'Error',
         detail: 'El nombre del rol es requerido',
@@ -64,28 +74,16 @@ const RolesPermisos = () => {
 
     try {
       if (rolEdit) {
-        // Actualizar rol existente
-        const updatedRoles = roles.map(r => 
-          r.id_rol === rolEdit.id_rol 
-            ? { ...r, nombre: nombreRol, descripcion: descripcionRol } 
-            : r
-        );
-        setRoles(updatedRoles);
-        toast.current.show({
+        await updateRole(rolEdit.id_rol, nombreRol, descripcionRol);
+        toast.current?.show({
           severity: 'success',
           summary: 'Éxito',
           detail: 'Rol actualizado correctamente',
           life: 3000
         });
       } else {
-        // Crear nuevo rol
-        const newRol = {
-          id_rol: Math.max(...roles.map(r => r.id_rol)) + 1,
-          nombre: nombreRol,
-          descripcion: descripcionRol
-        };
-        setRoles([...roles, newRol]);
-        toast.current.show({
+        await createRole(nombreRol, descripcionRol);
+        toast.current?.show({
           severity: 'success',
           summary: 'Éxito',
           detail: 'Rol creado correctamente',
@@ -93,25 +91,34 @@ const RolesPermisos = () => {
         });
       }
       setVisibleDialog(false);
-    } catch (error) {
-      toast.current.show({
+      cargarRoles();
+    } catch (error: unknown) {
+      let msg = 'Error al guardar el rol';
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === 'string'
+      ) {
+        msg = (error as { response?: { data?: { error?: string } } }).response!.data!.error!;
+      }
+      toast.current?.show({
         severity: 'error',
         summary: 'Error',
-        detail: 'Error al guardar el rol',
+        detail: msg,
         life: 3000
       });
     }
   };
 
-  const accionesBodyTemplate = (rowData) => {
-    return (
-      <Button
-        icon="pi pi-pencil"
-        className="p-button-rounded p-button-success p-button-outlined"
-        onClick={() => openEdit(rowData)}
-      />
-    );
-  };
+  const accionesBodyTemplate = (rowData: Role) => (
+    <Button
+      icon="pi pi-pencil"
+      className="p-button-rounded p-button-success p-button-outlined"
+      onClick={() => openEdit(rowData)}
+      tooltip="Editar"
+    />
+  );
 
   const footerDialog = (
     <div>
@@ -173,6 +180,7 @@ const RolesPermisos = () => {
               value={nombreRol}
               onChange={(e) => setNombreRol(e.target.value)}
               required
+              autoFocus
             />
           </div>
           <div className="p-field">

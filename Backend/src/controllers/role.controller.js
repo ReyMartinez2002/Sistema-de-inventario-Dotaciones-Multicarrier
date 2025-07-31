@@ -27,18 +27,14 @@ exports.getRoleById = async (req, res) => {
 exports.createRole = async (req, res) => {
   try {
     const { nombre, descripcion } = req.body;
-    
     // Validar que el nombre sea único
     const existingRole = await Role.findByName(nombre);
     if (existingRole) {
       return res.status(400).json({ error: 'Ya existe un rol con ese nombre' });
     }
-    
     const roleId = await Role.create({ nombre, descripcion });
-    
-    // Registrar en auditoría
-    await req.auditLog(`Creó nuevo rol: ${nombre}`, 'roles', roleId);
-    
+    // Registrar en auditoría si tienes (puedes quitar si no usas auditLog)
+    if (req.auditLog) await req.auditLog(`Creó nuevo rol: ${nombre}`, 'roles', roleId);
     res.status(201).json({ message: 'Rol creado exitosamente', id: roleId });
   } catch (error) {
     logger.error('Error al crear rol:', error);
@@ -50,16 +46,11 @@ exports.updateRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, descripcion } = req.body;
-    
     const affectedRows = await Role.update(id, { nombre, descripcion });
-    
     if (affectedRows === 0) {
       return res.status(404).json({ error: 'Rol no encontrado' });
     }
-    
-    // Registrar en auditoría
-    await req.auditLog(`Actualizó rol ID: ${id}`, 'roles', id);
-    
+    if (req.auditLog) await req.auditLog(`Actualizó rol ID: ${id}`, 'roles', id);
     res.json({ message: 'Rol actualizado exitosamente' });
   } catch (error) {
     logger.error('Error al actualizar rol:', error);
@@ -70,17 +61,11 @@ exports.updateRole = async (req, res) => {
 exports.deleteRole = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // No permitir eliminar roles básicos
     if (id <= 3) {
       return res.status(400).json({ error: 'No se pueden eliminar los roles básicos del sistema' });
     }
-    
     await Role.delete(id);
-    
-    // Registrar en auditoría
-    await req.auditLog(`Eliminó rol ID: ${id}`, 'roles', id);
-    
+    if (req.auditLog) await req.auditLog(`Eliminó rol ID: ${id}`, 'roles', id);
     res.json({ message: 'Rol eliminado exitosamente' });
   } catch (error) {
     if (error.message.includes('usuarios asignados')) {

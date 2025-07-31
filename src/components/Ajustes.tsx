@@ -11,7 +11,14 @@ import { classNames } from "primereact/utils";
 import { Panel } from "primereact/panel";
 import { TabView, TabPanel } from "primereact/tabview";
 import type { TabViewTabChangeEvent } from "primereact/tabview";
+import type { PreferenciasPayload } from "../services/userPreferencesApi";
+import { UserApi } from "../services/userPreferencesApi";
 import "./styles/Ajustes.css";
+
+// Obtén el id y token del usuario autenticado (ajusta según tu auth real)
+const userId = Number(localStorage.getItem("userId"));
+const token = localStorage.getItem("token") || "";
+const api = new UserApi();
 
 const IDIOMAS = [
   { label: "Español", value: "es" },
@@ -20,7 +27,12 @@ const IDIOMAS = [
   { label: "Deutsch", value: "de" },
 ];
 
-type PanelName = "emailPanel" | "passwordPanel" | "languagePanel" | "themePanel" | "notificationsPanel";
+type PanelName =
+  | "emailPanel"
+  | "passwordPanel"
+  | "languagePanel"
+  | "themePanel"
+  | "notificationsPanel";
 
 const Ajustes: React.FC = () => {
   const [preferencias, setPreferencias] = useState({
@@ -43,27 +55,34 @@ const Ajustes: React.FC = () => {
     passwordPanel: false,
     languagePanel: false,
     themePanel: false,
-    notificationsPanel: false
+    notificationsPanel: false,
   });
 
   const toast = useRef<Toast>(null);
 
   const togglePanel = (panelName: PanelName) => {
-    setPanelStates(prev => ({
+    setPanelStates((prev) => ({
       ...prev,
-      [panelName]: !prev[panelName]
+      [panelName]: !prev[panelName],
     }));
   };
 
-  const handlePreferenciaChange = useCallback((key: keyof typeof preferencias, value: boolean | string) => {
-    setPreferencias(prev => ({ ...prev, [key]: value }));
-  }, []);
+  const handlePreferenciaChange = useCallback(
+    (key: keyof typeof preferencias, value: boolean | string) => {
+      setPreferencias((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
 
-  const handleCredencialChange = useCallback((key: keyof typeof credenciales, value: string) => {
-    setCredenciales(prev => ({ ...prev, [key]: value }));
-  }, []);
+  const handleCredencialChange = useCallback(
+    (key: keyof typeof credenciales, value: string) => {
+      setCredenciales((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
 
-  const cambiarCorreo = useCallback(() => {
+  // Actualiza solo email
+  const cambiarCorreo = useCallback(async () => {
     if (!credenciales.correo) {
       showToast("warn", "Correo vacío", "Debe ingresar un correo válido");
       return;
@@ -72,39 +91,73 @@ const Ajustes: React.FC = () => {
       showToast("error", "Correo inválido", "Ingrese un correo electrónico válido");
       return;
     }
-    showToast("success", "Correo actualizado", "El correo fue cambiado correctamente");
-    handleCredencialChange("correo", "");
-    togglePanel('emailPanel');
+    try {
+      await api.updateEmail(userId, credenciales.correo, token);
+      showToast("success", "Correo actualizado", "El correo fue cambiado correctamente");
+      handleCredencialChange("correo", "");
+      togglePanel("emailPanel");
+    } catch (err) {
+      showToast("error", "Error", "No se pudo cambiar el correo" + err);
+    }
   }, [credenciales.correo, handleCredencialChange]);
 
-  const cambiarContraseña = useCallback(() => {
-    const { contraseñaActual, nuevaContraseña, confirmarContraseña } = credenciales;
+  // Cambia solo contraseña
+  const cambiarContraseña = useCallback(async () => {
+    const { contraseñaActual, nuevaContraseña, confirmarContraseña } =
+      credenciales;
     if (!contraseñaActual || !nuevaContraseña || !confirmarContraseña) {
       showToast("warn", "Campos incompletos", "Debe llenar todos los campos");
       return;
     }
     if (nuevaContraseña.length < 8) {
-      showToast("error", "Contraseña débil", "La contraseña debe tener al menos 8 caracteres");
+      showToast(
+        "error",
+        "Contraseña débil",
+        "La contraseña debe tener al menos 8 caracteres"
+      );
       return;
     }
     if (nuevaContraseña !== confirmarContraseña) {
-      showToast("error", "Contraseñas no coinciden", "Las contraseñas ingresadas no son iguales");
+      showToast(
+        "error",
+        "Contraseñas no coinciden",
+        "Las contraseñas ingresadas no son iguales"
+      );
       return;
     }
-    showToast("success", "Contraseña cambiada", "Contraseña actualizada con éxito");
-    handleCredencialChange("contraseñaActual", "");
-    handleCredencialChange("nuevaContraseña", "");
-    handleCredencialChange("confirmarContraseña", "");
-    togglePanel('passwordPanel');
+    try {
+      await api.updatePassword(userId, contraseñaActual, nuevaContraseña, token);
+      showToast("success", "Contraseña cambiada", "Contraseña actualizada con éxito");
+      handleCredencialChange("contraseñaActual", "");
+      handleCredencialChange("nuevaContraseña", "");
+      handleCredencialChange("confirmarContraseña", "");
+      togglePanel("passwordPanel");
+    } catch (err) {
+      showToast("error", "Error", "No se pudo cambiar la contraseña" + err);
+    }
   }, [credenciales, handleCredencialChange]);
 
-  const showToast = (severity: 'success' | 'info' | 'warn' | 'error', summary: string, detail: string) => {
+  // Guardar preferencias generales
+  const guardarPreferencias = async () => {
+    try {
+      await api.updatePreferences(userId, preferencias as PreferenciasPayload, token);
+      showToast("success", "Preferencias guardadas", "Tus preferencias han sido actualizadas");
+    } catch {
+      showToast("error", "Error", "No se pudo guardar la configuración");
+    }
+  };
+
+  const showToast = (
+    severity: "success" | "info" | "warn" | "error",
+    summary: string,
+    detail: string
+  ) => {
     toast.current?.show({ severity, summary, detail, life: 3000 });
   };
 
   // Usa JSX directamente en el prop header
   const cardHeader = (
-    <div style={{ padding: '1rem' }}>
+    <div style={{ padding: "1rem" }}>
       <span className="text-xl font-semibold">Configuración de la cuenta</span>
     </div>
   );
@@ -115,29 +168,39 @@ const Ajustes: React.FC = () => {
       <div className="p-grid p-justify-center">
         <div className="p-col-12 p-lg-10 p-xl-8">
           <Card header={cardHeader} className="shadow-5">
-            <TabView activeIndex={activeTab} onTabChange={(e: TabViewTabChangeEvent) => setActiveTab(e.index)}>
+            <TabView
+              activeIndex={activeTab}
+              onTabChange={(e: TabViewTabChangeEvent) => setActiveTab(e.index)}
+            >
               <TabPanel header="Seguridad" leftIcon="pi pi-shield mr-2">
                 <div className="p-grid p-fluid">
                   <div className="p-col-12 p-md-6">
-                    <Panel 
-                      header="Cambiar correo electrónico" 
-                      toggleable 
+                    <Panel
+                      header="Cambiar correo electrónico"
+                      toggleable
                       collapsed={!panelStates.emailPanel}
-                      onToggle={() => togglePanel('emailPanel')}
+                      onToggle={() => togglePanel("emailPanel")}
                     >
                       <div className="p-field">
-                        <label htmlFor="correo" className="block mb-2 font-medium text-700">
+                        <label
+                          htmlFor="correo"
+                          className="block mb-2 font-medium text-700"
+                        >
                           Nuevo correo electrónico
                         </label>
                         <InputText
                           id="correo"
                           value={credenciales.correo}
-                          onChange={(e) => handleCredencialChange("correo", e.target.value)}
+                          onChange={(e) =>
+                            handleCredencialChange("correo", e.target.value)
+                          }
                           placeholder="nuevo@correo.com"
                           className="w-full"
                           keyfilter="email"
                         />
-                        <small className="p-text-secondary">Recibirás un correo de confirmación</small>
+                        <small className="p-text-secondary">
+                          Recibirás un correo de confirmación
+                        </small>
                         <Button
                           label="Actualizar correo"
                           icon="pi pi-envelope"
@@ -151,20 +214,28 @@ const Ajustes: React.FC = () => {
                   </div>
 
                   <div className="p-col-12 p-md-6">
-                    <Panel 
-                      header="Cambiar contraseña" 
-                      toggleable 
+                    <Panel
+                      header="Cambiar contraseña"
+                      toggleable
                       collapsed={!panelStates.passwordPanel}
-                      onToggle={() => togglePanel('passwordPanel')}
+                      onToggle={() => togglePanel("passwordPanel")}
                     >
                       <div className="p-field">
-                        <label htmlFor="currentPass" className="block mb-2 font-medium text-700">
+                        <label
+                          htmlFor="currentPass"
+                          className="block mb-2 font-medium text-700"
+                        >
                           Contraseña actual
                         </label>
                         <Password
                           id="currentPass"
                           value={credenciales.contraseñaActual}
-                          onChange={(e) => handleCredencialChange("contraseñaActual", e.target.value)}
+                          onChange={(e) =>
+                            handleCredencialChange(
+                              "contraseñaActual",
+                              e.target.value
+                            )
+                          }
                           feedback={false}
                           toggleMask
                           className="w-full"
@@ -174,13 +245,21 @@ const Ajustes: React.FC = () => {
                       </div>
 
                       <div className="p-field mt-4">
-                        <label htmlFor="newPass" className="block mb-2 font-medium text-700">
+                        <label
+                          htmlFor="newPass"
+                          className="block mb-2 font-medium text-700"
+                        >
                           Nueva contraseña
                         </label>
                         <Password
                           id="newPass"
                           value={credenciales.nuevaContraseña}
-                          onChange={(e) => handleCredencialChange("nuevaContraseña", e.target.value)}
+                          onChange={(e) =>
+                            handleCredencialChange(
+                              "nuevaContraseña",
+                              e.target.value
+                            )
+                          }
                           toggleMask
                           className="w-full"
                           inputClassName="w-full"
@@ -193,13 +272,21 @@ const Ajustes: React.FC = () => {
                       </div>
 
                       <div className="p-field mt-4">
-                        <label htmlFor="confirmPass" className="block mb-2 font-medium text-700">
+                        <label
+                          htmlFor="confirmPass"
+                          className="block mb-2 font-medium text-700"
+                        >
                           Confirmar nueva contraseña
                         </label>
                         <Password
                           id="confirmPass"
                           value={credenciales.confirmarContraseña}
-                          onChange={(e) => handleCredencialChange("confirmarContraseña", e.target.value)}
+                          onChange={(e) =>
+                            handleCredencialChange(
+                              "confirmarContraseña",
+                              e.target.value
+                            )
+                          }
                           feedback={false}
                           toggleMask
                           className="w-full"
@@ -224,18 +311,22 @@ const Ajustes: React.FC = () => {
               <TabPanel header="Preferencias" leftIcon="pi pi-cog mr-2">
                 <div className="p-grid p-fluid">
                   <div className="p-col-12 p-md-6">
-                    <Panel 
-                      header="Idioma y región" 
-                      toggleable 
+                    <Panel
+                      header="Idioma y región"
+                      toggleable
                       collapsed={!panelStates.languagePanel}
-                      onToggle={() => togglePanel('languagePanel')}
+                      onToggle={() => togglePanel("languagePanel")}
                     >
                       <div className="p-field">
-                        <label className="block mb-2 font-medium text-700">Idioma de la interfaz</label>
+                        <label className="block mb-2 font-medium text-700">
+                          Idioma de la interfaz
+                        </label>
                         <Dropdown
                           value={preferencias.idioma}
                           options={IDIOMAS}
-                          onChange={(e) => handlePreferenciaChange("idioma", e.value)}
+                          onChange={(e) =>
+                            handlePreferenciaChange("idioma", e.value)
+                          }
                           placeholder="Seleccione idioma"
                           className="w-full"
                           optionLabel="label"
@@ -243,19 +334,24 @@ const Ajustes: React.FC = () => {
                       </div>
                     </Panel>
 
-                    <Panel 
-                      header="Tema" 
-                      toggleable 
+                    <Panel
+                      header="Tema"
+                      toggleable
                       className="mt-4"
                       collapsed={!panelStates.themePanel}
-                      onToggle={() => togglePanel('themePanel')}
+                      onToggle={() => togglePanel("themePanel")}
                     >
                       <div className="p-field">
                         <div className="flex align-items-center">
                           <Checkbox
                             inputId="tema"
                             checked={preferencias.modoOscuro}
-                            onChange={(e: CheckboxChangeEvent) => handlePreferenciaChange("modoOscuro", !!e.checked)}
+                            onChange={(e: CheckboxChangeEvent) =>
+                              handlePreferenciaChange(
+                                "modoOscuro",
+                                !!e.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           <label htmlFor="tema" className="font-medium text-700">
@@ -267,18 +363,23 @@ const Ajustes: React.FC = () => {
                   </div>
 
                   <div className="p-col-12 p-md-6">
-                    <Panel 
-                      header="Notificaciones" 
-                      toggleable 
+                    <Panel
+                      header="Notificaciones"
+                      toggleable
                       collapsed={!panelStates.notificationsPanel}
-                      onToggle={() => togglePanel('notificationsPanel')}
+                      onToggle={() => togglePanel("notificationsPanel")}
                     >
                       <div className="p-field">
                         <div className="flex align-items-center">
                           <Checkbox
                             inputId="notif"
                             checked={preferencias.notificaciones}
-                            onChange={(e: CheckboxChangeEvent) => handlePreferenciaChange("notificaciones", !!e.checked)}
+                            onChange={(e: CheckboxChangeEvent) =>
+                              handlePreferenciaChange(
+                                "notificaciones",
+                                !!e.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           <label htmlFor="notif" className="font-medium text-700">
@@ -288,11 +389,16 @@ const Ajustes: React.FC = () => {
                       </div>
 
                       <div className="p-field mt-4">
-                        <label className="block mb-2 font-medium text-700">Frecuencia de notificaciones</label>
+                        <label className="block mb-2 font-medium text-700">
+                          Frecuencia de notificaciones
+                        </label>
                         <Dropdown
                           value="diario"
                           options={[
-                            { label: "En tiempo real", value: "inmediato" },
+                            {
+                              label: "En tiempo real",
+                              value: "inmediato",
+                            },
                             { label: "Diariamente", value: "diario" },
                             { label: "Semanalmente", value: "semanal" },
                           ]}
@@ -307,12 +413,13 @@ const Ajustes: React.FC = () => {
             </TabView>
 
             <div className="p-mt-4 p-text-right">
-              <Button 
-                label="Guardar todos los cambios" 
-                icon="pi pi-save" 
+              <Button
+                label="Guardar todos los cambios"
+                icon="pi pi-save"
                 className="p-button-rounded btn-success-ajustes"
                 severity="success"
                 raised
+                onClick={guardarPreferencias}
               />
             </div>
           </Card>

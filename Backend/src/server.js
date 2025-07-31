@@ -10,6 +10,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth.routes');
 const users = require('./routes/users');
 const dotacionRoutes = require('./routes/dotacion.routes');
+const rolesRoutes = require('./routes/roles');
 
 // Middlewares
 const { errorHandler } = require('./middleware/error.middleware');
@@ -65,6 +66,7 @@ apiRouter.get('/health', (req, res) => {
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/users', users);
 apiRouter.use('/dotaciones', dotacionRoutes);
+apiRouter.use('/roles', rolesRoutes);
 
 // Montar todas las rutas bajo /api
 app.use('/api', apiRouter);

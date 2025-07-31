@@ -167,19 +167,19 @@ const UserModel = {
    * @returns {Promise<array>} Lista de usuarios
    */
   getAll: async () => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT id_usuario, username, nombre, rol, id_rol, 
-       CAST(estado AS CHAR) as estado, fecha_creacion
-       FROM usuarios_login`
-    );
-    
-    return rows;
-  } catch (error) {
-    logger.error(`Error en getAll: ${error.message}`);
-    throw error;
-  }
-},
+    try {
+      const [rows] = await pool.query(
+        `SELECT id_usuario, username, nombre, rol, id_rol, 
+         CAST(estado AS CHAR) as estado, fecha_creacion
+         FROM usuarios_login`
+      );
+      
+      return rows;
+    } catch (error) {
+      logger.error(`Error en getAll: ${error.message}`);
+      throw error;
+    }
+  },
 
   /**
    * Verifica si existe al menos un superadmin
@@ -285,7 +285,6 @@ const UserModel = {
     } finally {
       connection.release();
     }
-    
   },
 
   /**
@@ -340,8 +339,27 @@ const UserModel = {
     } finally {
       connection.release();
     }
-  }
-};
+  },
 
+  /**
+   * Actualiza la contraseña del usuario
+   * @param {number} id_usuario - ID del usuario
+   * @param {string} newPasswordHash - Nuevo hash de la contraseña
+   * @returns {Promise<number>} Número de filas afectadas
+   */
+updatePassword: async (id_usuario, newPasswordHash) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE usuarios_login SET password_hash = ? WHERE id_usuario = ?',
+      [newPasswordHash, id_usuario]
+    );
+    logger.info(`Contraseña actualizada para usuario: ${id_usuario}`);
+    return result.affectedRows;
+  } catch (error) {
+    logger.error(`Error en updatePassword: ${error.message}`, { id_usuario });
+    throw error;
+  }
+}
+};
 
 module.exports = UserModel;

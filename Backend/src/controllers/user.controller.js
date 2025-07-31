@@ -219,3 +219,59 @@ exports.changeUserStatus = async (req, res) => {
     });
   }
 };
+exports.changePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contraseñaActual, nuevaContraseña } = req.body;
+
+    // Validar campos
+    if (!contraseñaActual || !nuevaContraseña) {
+      return res.status(400).json({
+        success: false,
+        message: "Debe proporcionar la contraseña actual y la nueva contraseña"
+      });
+    }
+
+    if (nuevaContraseña.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'La nueva contraseña debe tener al menos 8 caracteres'
+      });
+    }
+
+    // Buscar usuario
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Verificar contraseña actual
+    const match = await bcrypt.compare(contraseñaActual, user.password_hash);
+    if (!match) {
+      return res.status(401).json({
+        success: false,
+        message: 'La contraseña actual es incorrecta'
+      });
+    }
+
+    // Hashear nueva contraseña y actualizar
+    const saltRounds = 12;
+    const newPasswordHash = await bcrypt.hash(nuevaContraseña, saltRounds);
+    await User.updatePassword(id, newPasswordHash);
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente'
+    });
+  } catch (err) {
+    console.error('Error en changePassword:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al cambiar contraseña',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno'
+    });
+  }
+};
