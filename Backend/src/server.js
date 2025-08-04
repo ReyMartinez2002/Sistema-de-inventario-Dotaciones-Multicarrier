@@ -14,8 +14,6 @@ const rolesRoutes = require('./routes/roles');
 
 // Middlewares
 const { errorHandler } = require('./middleware/error.middleware');
-// Si usas authenticateToken global descomenta el siguiente import y la línea del middleware
-// const { verifyToken } = require('./middleware/auth.middleware');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -46,11 +44,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// 4. Middleware de autenticación global (opcional)
-// Si quieres que todas las rutas estén protegidas por defecto descomenta:
-// app.use(verifyToken);
-
-// 5. Configuración de rutas
+// 4. Configuración de rutas
 const apiRouter = express.Router();
 
 // Rutas públicas
@@ -74,11 +68,9 @@ app.use('/api', apiRouter);
 // Ruta raíz
 app.get('/', (req, res) => {
   res.send('API de Gestión de Dotaciones EPP');
-  // Si tienes una carpeta "public" con index.html puedes usar:
-  // res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 6. Manejo de errores
+// 5. Manejo de errores
 app.use((req, res, next) => {
   res.status(404).json({ 
     success: false,
@@ -88,10 +80,9 @@ app.use((req, res, next) => {
 
 app.use(errorHandler);
 
-// 7. Inicio del servidor
+// 6. Inicio del servidor
 const server = app.listen(port, () => {
   console.log(`\n✅ Servidor corriendo en http://localhost:${port}`);
-  console.log(`🕒 ${new Date().toLocaleString()}`);
 });
 
 // Manejo de errores de servidor

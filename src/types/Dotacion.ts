@@ -1,24 +1,33 @@
-export interface DotacionData {
-  id_dotacion?: number; // 👈 clave primaria opcional, necesaria para edición
-  id_subcategoria: number;
-  descripcion?: string;
-  genero?: string;
-  estado?: 'nuevo' | 'reutilizable' | 'dañado' | 'devuelto'; // opcional si lo usas
-  stock_nuevo?: number;
-  stock_reutilizable?: number;
-  stock_minimo?: number;
-  precio_unitario?: number;
-}
-export interface DotacionApiResponse {
-  id_dotacion: number; // 👈 debe coincidir con la BD
-  id_subcategoria: number;
-  descripcion: string;
-  genero?: string;
+// src/types/Dotacion.ts
+export type Genero = 'Masculino' | 'Femenino' | 'Unisex';
+
+export interface TallaData {
+  id_talla?: number;
+  talla: string;
   stock_nuevo: number;
   stock_reutilizable?: number;
-  stock_minimo?: number;
-  precio_unitario?: number;
-  fecha_creacion?: string;
+}
+
+export interface Articulo {
+  id_articulo: number;
+  id_subcategoria: number;
+  nombre: string;
+  descripcion: string | null;
+  genero: Genero;
+  eliminado: boolean;
+  fecha_creacion: string;
+  fecha_actualizacion: string | null;
+  tallas?: TallaData[];
+  subcategoria?: string;
+  categoria?: string;
+}
+
+export interface ArticuloForm {
+  nombre: string;
+  descripcion?: string;
+  genero: Genero;
+  id_subcategoria: number;
+  tallas?: TallaData[];
 }
 
 export interface Categoria {
@@ -30,15 +39,19 @@ export interface Subcategoria {
   id_subcategoria: number;
   id_categoria: number;
   nombre: string;
+  descripcion?: string;
 }
 
-export interface EstadoPayload {
-  estado: 'nuevo' | 'reutilizable' | 'dañado' | 'devuelto';
-  id_dotacion?: number; // si el endpoint lo requiere
+export interface TallaBD {
+  id_talla: number;
+  id_articulo: number;
+  talla: string;
+  fecha_creacion: string;
 }
-export interface HistorialEstado {
-  id_dotacion: number;
-  fecha: string; // considera usar Date si prefieres tipos más estrictos
-  estado: 'nuevo' | 'reutilizable' | 'dañado' | 'devuelto';
-  usuario: string; // o mejor aún: { id: number, nombre: string }
+
+export interface StockTalla {
+  id_stock?: number;
+  id_talla: number;
+  stock_nuevo: number;
+  stock_reutilizable?: number;
 }

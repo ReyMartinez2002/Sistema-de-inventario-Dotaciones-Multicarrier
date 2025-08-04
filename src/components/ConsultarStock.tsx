@@ -8,6 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import "../components/styles/ConsultarStock.css"; 
 
 import logo from "../assets/Icono-casco.png"; // Asegúrate que este logo exista
 

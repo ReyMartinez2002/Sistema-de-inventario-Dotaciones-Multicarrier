@@ -1,161 +1,155 @@
 const db = require('../config/db');
-const { dotacionSchema } = require('../validators/dotacion.validator');
 
 const Dotacion = {
-  /**
-   * Obtiene todas las dotaciones no eliminadas
-   */
-  getAll: async () => {
-    const [rows] = await db.query('SELECT * FROM dotaciones WHERE eliminado = 0');
+  // Obtener todas las categorías
+  getCategorias: async () => {
+    const [rows] = await db.query('SELECT * FROM categorias_dotacion');
     return rows;
   },
 
-  /**
-   * Obtiene una dotación por ID (solo si no está eliminada)
-   */
-  getById: async (id) => {
-    const [rows] = await db.query(
-      'SELECT * FROM dotaciones WHERE id_dotacion = ? AND eliminado = 0', 
-      [id]
-    );
-    return rows[0];
+  // Obtener todas las subcategorías
+  getSubcategorias: async () => {
+    const [rows] = await db.query('SELECT * FROM subcategorias_dotacion');
+    return rows;
   },
 
-  /**
-   * Crea una nueva dotación con validación
-   */
+  // Obtener subcategorías por categoría
+  getSubcategoriasByCategoria: async (idCategoria) => {
+    const [rows] = await db.query(
+      'SELECT * FROM subcategorias_dotacion WHERE id_categoria = ?',
+      [idCategoria]
+    );
+    return rows;
+  },
+
+  // Obtener todos los artículos
+  getArticulos: async () => {
+    const [rows] = await db.query(
+      'SELECT * FROM articulos_dotacion WHERE eliminado = 0'
+    );
+    return rows;
+  },
+
+  // Obtener artículos por subcategoría
+  getArticulosBySubcategoria: async (idSubcategoria) => {
+    const [rows] = await db.query(
+      'SELECT * FROM articulos_dotacion WHERE id_subcategoria = ? AND eliminado = 0',
+      [idSubcategoria]
+    );
+    return rows;
+  },
+
+  // Obtener todos los artículos con sus tallas
+  getAll: async () => {
+    const [articulos] = await db.query(
+      'SELECT * FROM articulos_dotacion WHERE eliminado = 0'
+    );
+
+    for (const articulo of articulos) {
+      const [tallas] = await db.query(
+        'SELECT * FROM tallas_articulos WHERE id_articulo = ?',
+        [articulo.id_articulo]
+      );
+      articulo.tallas = tallas;
+    }
+
+    return articulos;
+  },
+
+  // Obtener un artículo por ID
+  getById: async (id) => {
+    const [rows] = await db.query(
+      'SELECT * FROM articulos_dotacion WHERE id_articulo = ? AND eliminado = 0',
+      [id]
+    );
+    
+    if (rows.length === 0) return null;
+    
+    const articulo = rows[0];
+    const [tallas] = await db.query(
+      'SELECT * FROM tallas_articulos WHERE id_articulo = ?',
+      [id]
+    );
+    articulo.tallas = tallas;
+    
+    return articulo;
+  },
+
+  // Obtener tallas por artículo
+  getTallasByArticulo: async (idArticulo) => {
+    const [rows] = await db.query(
+      'SELECT * FROM tallas_articulos WHERE id_articulo = ?',
+      [idArticulo]
+    );
+    return rows;
+  },
+
+  // Crear un nuevo artículo
   create: async (data) => {
-    // Validar y normalizar datos
-    const { error, value } = dotacionSchema.validate(data, {
-      stripUnknown: true,
-      abortEarly: false
-    });
-
-    if (error) {
-      throw new Error(`Validación fallida: ${error.details.map(d => d.message).join(', ')}`);
-    }
-
-    // Convertir precio_unitario a número si es necesario
-    if (value.precio_unitario !== undefined && typeof value.precio_unitario === 'string') {
-      value.precio_unitario = parseFloat(value.precio_unitario);
-    }
-
-    // Establecer valores por defecto
-    const completeData = {
-      ...value,
-      stock_nuevo: value.stock_nuevo || 0,
-      stock_reutilizable: value.stock_reutilizable || 0,
-      stock_minimo: value.stock_minimo || 0,
-      precio_unitario: value.precio_unitario || 0.00,
-      estado: value.estado || 'nuevo',
-      eliminado: 0 // Asegurar que no se cree como eliminado
-    };
-
-    const [result] = await db.query('INSERT INTO dotaciones SET ?', [completeData]);
+    const [result] = await db.query('INSERT INTO articulos_dotacion SET ?', [{
+      ...data,
+      fecha_creacion: new Date(),
+      fecha_actualizacion: null,
+      eliminado: 0
+    }]);
     return result.insertId;
   },
 
-  /**
-   * Actualiza una dotación existente con validación
-   */
+  // Actualizar un artículo
   update: async (id, data) => {
-    // Validar y normalizar datos
-    const { error, value } = dotacionSchema.validate(data, {
-      stripUnknown: true,
-      abortEarly: false
-    });
-
-    if (error) {
-      throw new Error(`Validación fallida: ${error.details.map(d => d.message).join(', ')}`);
-    }
-
-    // Convertir precio_unitario a número si es necesario
-    if (value.precio_unitario !== undefined && typeof value.precio_unitario === 'string') {
-      value.precio_unitario = parseFloat(value.precio_unitario);
-    }
-
-    // Excluir el campo eliminado de las actualizaciones normales
-    const { eliminado, ...updateData } = value;
-    
     const [result] = await db.query(
-      'UPDATE dotaciones SET ? WHERE id_dotacion = ? AND eliminado = 0', 
-      [updateData, id]
+      'UPDATE articulos_dotacion SET ? WHERE id_articulo = ?',
+      [{
+        ...data,
+        fecha_actualizacion: new Date()
+      }, id]
     );
-    
-    if (result.affectedRows === 0) {
-      throw new Error('Dotación no encontrada o ya eliminada');
-    }
-
-    return await Dotacion.getById(id);
+    return result.affectedRows > 0;
   },
 
-  /**
-   * Elimina una dotación (marcado lógico)
-   */
+  // Eliminar (marcar como eliminado) un artículo
   remove: async (id) => {
-    // Verificar primero que existe y no está eliminada
-    const dotacion = await Dotacion.getById(id);
-    if (!dotacion) {
-      throw new Error('Dotación no encontrada o ya eliminada');
-    }
-
-    // Actualización para marcado lógico
     const [result] = await db.query(
-      'UPDATE dotaciones SET eliminado = 1 WHERE id_dotacion = ?', 
-      [id]
-    );
-    
-    return result.affectedRows > 0;
-  },
-
-  /**
-   * Eliminación física (solo para administración avanzada)
-   */
-  hardDelete: async (id) => {
-    const [result] = await db.query(
-      'DELETE FROM dotaciones WHERE id_dotacion = ?', 
+      'UPDATE articulos_dotacion SET eliminado = 1 WHERE id_articulo = ?',
       [id]
     );
     return result.affectedRows > 0;
   },
 
-  /**
-   * Obtiene todas las categorías
-   */
-  getCategorias: async () => {
-    const [rows] = await db.query('SELECT id_categoria, nombre FROM categorias_dotacion');
-    return rows;
+  // Agregar talla a artículo
+  addTalla: async (idArticulo, data) => {
+    const [result] = await db.query('INSERT INTO tallas_articulos SET ?', [{
+      ...data,
+      id_articulo: idArticulo
+    }]);
+    return result.insertId;
   },
 
-  /**
-   * Obtiene todas las subcategorías
-   */
-  getSubcategorias: async () => {
-    const [rows] = await db.query(`
-      SELECT 
-        s.id_subcategoria,
-        s.id_categoria,
-        s.nombre AS nombre
-      FROM 
-        subcategorias_dotacion s
-    `);
-    return rows;
+  // Actualizar talla de artículo
+  updateTalla: async (idTalla, data) => {
+    const [result] = await db.query(
+      'UPDATE tallas_articulos SET ? WHERE id_talla = ?',
+      [data, idTalla]
+    );
+    return result.affectedRows > 0;
   },
 
-  /**
-   * Valida los datos de dotación sin guardar
-   */
-  validate: async (data) => {
-    const { error, value } = dotacionSchema.validate(data, {
-      stripUnknown: true,
-      abortEarly: false
-    });
+  // Eliminar talla de artículo
+  removeTalla: async (idTalla) => {
+    const [result] = await db.query(
+      'DELETE FROM tallas_articulos WHERE id_talla = ?',
+      [idTalla]
+    );
+    return result.affectedRows > 0;
+  },
 
-    if (error) {
-      return { isValid: false, errors: error.details };
-    }
-
-    return { isValid: true, data: value };
+  // Eliminar todas las tallas de un artículo
+  removeAllTallas: async (idArticulo) => {
+    const [result] = await db.query(
+      'DELETE FROM tallas_articulos WHERE id_articulo = ?',
+      [idArticulo]
+    );
+    return result.affectedRows > 0;
   }
 };
 

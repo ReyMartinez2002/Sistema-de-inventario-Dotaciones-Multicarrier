@@ -1,4 +1,4 @@
-import  { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
@@ -6,9 +6,10 @@ import { FilterMatchMode } from 'primereact/api';
 import { Tag } from 'primereact/tag';
 import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
+import { getHistorialAccesos } from '../../services/userApi';
 
 const HistorialAccesos = () => {
-  const [historial, setHistorial] = useState([]);
+  const [historial, setHistorial] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -17,23 +18,17 @@ const HistorialAccesos = () => {
     exito: { value: null, matchMode: FilterMatchMode.EQUALS }
   });
   const [globalFilterValue, setGlobalFilterValue] = useState('');
-  const [dateRange, setDateRange] = useState(null);
+  const [dateRange, setDateRange] = useState<any>(null);
 
-  // Simulación de datos - en una app real esto vendría de tu API
   useEffect(() => {
     const fetchHistorial = async () => {
+      setLoading(true);
       try {
-        // Simulando llamada a API
-        const data = [
-          { id: 1, username: 'admin@multicarrier.com', fecha_acceso: '2025-07-19 10:05:40', ip_acceso: '::1', exito: true },
-          { id: 2, username: 'admin@multicarrier.com', fecha_acceso: '2025-07-19 10:10:07', ip_acceso: '::1', exito: false },
-          { id: 3, username: 'gerente@multicarrier.com', fecha_acceso: '2025-07-19 11:15:58', ip_acceso: '192.168.1.1', exito: true },
-          { id: 4, username: 'rrhh@multicarrier.com', fecha_acceso: '2025-07-19 12:32:23', ip_acceso: '192.168.1.2', exito: true }
-        ];
+        const data = await getHistorialAccesos();
         setHistorial(data);
-        setLoading(false);
       } catch (error) {
         console.error('Error fetching historial:', error);
+      } finally {
         setLoading(false);
       }
     };
@@ -41,7 +36,7 @@ const HistorialAccesos = () => {
     fetchHistorial();
   }, []);
 
-  const onGlobalFilterChange = (e) => {
+  const onGlobalFilterChange = (e: any) => {
     const value = e.target.value;
     let _filters = { ...filters };
     _filters['global'].value = value;
@@ -49,14 +44,14 @@ const HistorialAccesos = () => {
     setGlobalFilterValue(value);
   };
 
-  const onDateChange = (e) => {
+  const onDateChange = (e: any) => {
     setDateRange(e.value);
     let _filters = { ...filters };
     _filters['fecha_acceso'].value = e.value;
     setFilters(_filters);
   };
 
-  const estadoBodyTemplate = (rowData) => {
+  const estadoBodyTemplate = (rowData: any) => {
     return (
       <Tag
         value={rowData.exito ? 'Éxito' : 'Fallido'}
@@ -65,18 +60,18 @@ const HistorialAccesos = () => {
     );
   };
 
-  const fechaBodyTemplate = (rowData) => {
+  const fechaBodyTemplate = (rowData: any) => {
     return new Date(rowData.fecha_acceso).toLocaleString();
   };
 
-  const exitoFilterTemplate = (options) => {
+  const exitoFilterTemplate = (options: any) => {
     return (
       <Dropdown
         value={options.value}
         options={[
           { label: 'Todos', value: null },
-          { label: 'Éxito', value: true },
-          { label: 'Fallido', value: false }
+          { label: 'Éxito', value: 1 },
+          { label: 'Fallido', value: 0 }
         ]}
         onChange={(e) => options.filterCallback(e.value)}
         placeholder="Filtrar por estado"

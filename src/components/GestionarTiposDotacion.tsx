@@ -1,282 +1,269 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
-import { MultiSelect } from "primereact/multiselect";
 import { Dropdown } from "primereact/dropdown";
-import { v4 as uuidv4 } from "uuid";
+import tipoDotacionApi from "../services/dotacionApi";
+import { useAuth } from "../contex/useAuth";
+import type { Categoria, Subcategoria, Articulo, ArticuloForm } from "../types/Dotacion";
 
-interface TipoDotacion {
-  id: string;
-  producto: string;
-  tipos: string[];
-}
+const safeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.data && Array.isArray(data.data)) return data.data;
+  return [];
+};
 
 const GestionarTiposDotacion: React.FC = () => {
-  const [listaTipos, setListaTipos] = useState<TipoDotacion[]>([]);
+  const { token } = useAuth();
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [selectedCategoria, setSelectedCategoria] = useState<Categoria | null>(null);
+  const [selectedSubcategoria, setSelectedSubcategoria] = useState<Subcategoria | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
-  const [productoSeleccionado, setProductoSeleccionado] = useState<string>("");
-  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>([]);
-  const [nuevoTipoInput, setNuevoTipoInput] = useState<string>("");
-  const [nuevoProductoInput, setNuevoProductoInput] = useState<string>("");
-  const [globalFilter, setGlobalFilter] = useState<string>("");
+  const [nuevoArticulo, setNuevoArticulo] = useState<ArticuloForm>({
+    nombre: '',
+    descripcion: '',
+    genero: 'Unisex',
+    id_subcategoria: 0
+  });
+  const [loading, setLoading] = useState(false);
   const toast = useRef<Toast>(null);
 
-  const obtenerTiposPorProducto = (producto: string): string[] => {
-    const encontrado = listaTipos.find((d) => d.producto === producto);
-    return encontrado ? encontrado.tipos : [];
-  };
-
-  const agregarTipoSiNoExiste = () => {
-    if (!nuevoTipoInput.trim()) return;
-
-    const producto = productoSeleccionado || nuevoProductoInput.trim();
-
-    if (!producto) {
-      toast.current?.show({
-        severity: "warn",
-        summary: "Selecciona o escribe un producto",
-        detail: "Debes definir un producto antes de agregar tipos.",
-        life: 3000,
-      });
-      return;
-    }
-
-    const tiposExistentes = obtenerTiposPorProducto(producto);
-
-    if (tiposExistentes.includes(nuevoTipoInput.trim())) {
-      toast.current?.show({
-        severity: "info",
-        summary: "Tipo existente",
-        detail: "Ese tipo ya existe para este producto.",
-        life: 3000,
-      });
-      return;
-    }
-
-    const actualizado = listaTipos.map((item) =>
-      item.producto === producto
-        ? { ...item, tipos: [...item.tipos, nuevoTipoInput.trim()] }
-        : item
-    );
-
-    const productoExiste = listaTipos.some((item) => item.producto === producto);
-    const nuevaLista = productoExiste
-      ? actualizado
-      : [
-          ...listaTipos,
-          {
-            id: uuidv4(),
-            producto,
-            tipos: [nuevoTipoInput.trim()],
-          },
-        ];
-
-    setListaTipos(nuevaLista);
-    setTiposSeleccionados((prev) => [...prev, nuevoTipoInput.trim()]);
-    setNuevoTipoInput("");
-    if (!productoSeleccionado) {
-      setProductoSeleccionado(producto);
-    }
+  const mostrarError = useCallback((mensaje: string) => {
     toast.current?.show({
-      severity: "success",
-      summary: "Tipo agregado",
-      detail: "Nuevo tipo agregado correctamente.",
-      life: 2500,
-    });
-  };
-
-  const guardar = () => {
-    const producto = productoSeleccionado || nuevoProductoInput.trim();
-    if (!producto || tiposSeleccionados.length === 0) {
-      toast.current?.show({
-        severity: "warn",
-        summary: "Campos incompletos",
-        detail: "Selecciona o escribe un producto y al menos un tipo.",
-        life: 3000,
-      });
-      return;
-    }
-
-    const yaExiste = listaTipos.some((item) => item.producto === producto);
-    let actualizada: TipoDotacion[];
-
-    if (yaExiste) {
-      actualizada = listaTipos.map((item) =>
-        item.producto === producto
-          ? { ...item, tipos: tiposSeleccionados }
-          : item
-      );
-    } else {
-      actualizada = [
-        ...listaTipos,
-        {
-          id: uuidv4(),
-          producto,
-          tipos: tiposSeleccionados,
-        },
-      ];
-    }
-
-    setListaTipos(actualizada);
-    toast.current?.show({
-      severity: "success",
-      summary: "Guardado",
-      detail: "Registro actualizado correctamente.",
+      severity: "error",
+      summary: "Error",
+      detail: mensaje,
       life: 3000,
     });
+  }, []);
 
-    setProductoSeleccionado("");
-    setNuevoProductoInput("");
-    setTiposSeleccionados([]);
-    setDialogVisible(false);
-  };
+  const mostrarExito = useCallback((mensaje: string) => {
+    toast.current?.show({
+      severity: "success",
+      summary: "Éxito",
+      detail: mensaje,
+      life: 3000,
+    });
+  }, []);
 
-  const abrirDialogo = () => {
-    setProductoSeleccionado("");
-    setNuevoProductoInput("");
-    setTiposSeleccionados([]);
-    setNuevoTipoInput("");
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      try {
+        const data = await tipoDotacionApi.getCategorias(token || '');
+        setCategorias(safeArray(data));
+      } catch (error) {
+        mostrarError(`Error al cargar categorías: ${error instanceof Error ? error.message : String(error)}`);
+        setCategorias([]);
+      }
+    };
+    cargarCategorias();
+  }, [token, mostrarError]);
+
+  useEffect(() => {
+    if (selectedCategoria) {
+      const cargarSubcategorias = async () => {
+        try {
+          const data = await tipoDotacionApi.getSubcategorias(token || '', selectedCategoria.id_categoria);
+          setSubcategorias(safeArray(data));
+          setSelectedSubcategoria(null);
+        } catch (error) {
+          mostrarError(`Error al cargar subcategorías: ${error instanceof Error ? error.message : String(error)}`);
+          setSubcategorias([]);
+        }
+      };
+      cargarSubcategorias();
+    } else {
+      setSubcategorias([]);
+      setSelectedSubcategoria(null);
+    }
+  }, [selectedCategoria, token, mostrarError]);
+
+  useEffect(() => {
+    if (selectedSubcategoria) {
+      const cargarArticulos = async () => {
+        try {
+          const data = await tipoDotacionApi.getArticulos(token || '', selectedSubcategoria.id_subcategoria);
+          setArticulos(safeArray(data));
+        } catch (error) {
+          mostrarError(`Error al cargar artículos: ${error instanceof Error ? error.message : String(error)}`);
+          setArticulos([]);
+        }
+      };
+      cargarArticulos();
+    } else {
+      setArticulos([]);
+    }
+  }, [selectedSubcategoria, token, mostrarError]);
+
+  const abrirDialogoNuevoArticulo = () => {
+    if (!selectedSubcategoria) {
+      mostrarError("Debe seleccionar una subcategoría primero");
+      return;
+    }
+    setNuevoArticulo({
+      nombre: '',
+      descripcion: '',
+      genero: 'Unisex',
+      id_subcategoria: selectedSubcategoria.id_subcategoria
+    });
     setDialogVisible(true);
   };
 
-  const eliminarRegistro = (id: string) => {
-    setListaTipos(listaTipos.filter((item) => item.id !== id));
-    toast.current?.show({
-      severity: "info",
-      summary: "Eliminado",
-      detail: "Registro eliminado.",
-      life: 2000,
-    });
+  const guardarArticulo = async () => {
+    if (!nuevoArticulo.nombre.trim()) {
+      mostrarError("El nombre del artículo es requerido");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await tipoDotacionApi.createArticulo(token || '', {
+        ...nuevoArticulo,
+        descripcion: nuevoArticulo.descripcion || undefined
+      });
+      mostrarExito("Artículo creado exitosamente");
+      
+      if (selectedSubcategoria) {
+        const data = await tipoDotacionApi.getArticulos(token || '', selectedSubcategoria.id_subcategoria);
+        setArticulos(safeArray(data));
+      }
+      
+      setDialogVisible(false);
+    } catch (error) {
+      mostrarError(`Error al guardar el artículo: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="p-4">
       <Toast ref={toast} />
       <div className="card">
-        <div className="flex justify-content-between align-items-center mb-3">
-          <h3 style={{ color: "#cd1818" }}>Gestionar Tipos de Dotación</h3>
-          <Button
-            label="Agregar"
-            icon="pi pi-plus"
-            className="p-button-danger"
-            onClick={abrirDialogo}
-          />
+        <h3 style={{ color: "#cd1818" }}>Gestión de Dotaciones</h3>
+
+        <div className="grid mt-3">
+          <div className="col-12 md:col-4">
+            <label>Categoría</label>
+            <Dropdown
+              value={selectedCategoria}
+              options={safeArray(categorias)}
+              onChange={(e) => setSelectedCategoria(e.value)}
+              optionLabel="nombre"
+              placeholder="Seleccione una categoría"
+              className="w-full"
+            />
+          </div>
+
+          <div className="col-12 md:col-4">
+            <label>Subcategoría</label>
+            <Dropdown
+              value={selectedSubcategoria}
+              options={safeArray(subcategorias)}
+              onChange={(e) => setSelectedSubcategoria(e.value)}
+              optionLabel="nombre"
+              placeholder="Seleccione una subcategoría"
+              className="w-full"
+              disabled={!selectedCategoria}
+            />
+          </div>
+
+          <div className="col-12 md:col-4 flex align-items-end">
+            <Button
+              label="Nuevo Artículo"
+              icon="pi pi-plus"
+              className="p-button-danger"
+              onClick={abrirDialogoNuevoArticulo}
+              disabled={!selectedSubcategoria}
+            />
+          </div>
         </div>
 
-        <span className="p-input-icon-left mb-3">
-          <i className="pi pi-search" />
-          <InputText
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Buscar..."
-          />
-        </span>
-
         <DataTable
-          value={listaTipos}
+          value={safeArray(articulos)}
           paginator
           rows={5}
-          globalFilter={globalFilter}
-          responsiveLayout="scroll"
-          emptyMessage="No hay registros"
+          loading={loading}
+          emptyMessage="No hay artículos registrados"
+          className="mt-3"
         >
-          <Column field="producto" header="Producto" sortable />
-          <Column
-            field="tipos"
-            header="Tipos"
-            body={(rowData) => rowData.tipos.join(", ")}
+          <Column field="nombre" header="Nombre" sortable />
+          <Column 
+            field="descripcion" 
+            header="Descripción" 
+            body={(rowData) => rowData.descripcion || '-'} 
           />
-          <Column
-            header="Acciones"
-            body={(rowData) => (
-              <Button
-                icon="pi pi-trash"
-                className="p-button-rounded p-button-danger p-button-text"
-                onClick={() => eliminarRegistro(rowData.id)}
-              />
-            )}
-          />
+          <Column field="genero" header="Género" />
         </DataTable>
       </div>
 
       <Dialog
         visible={dialogVisible}
         onHide={() => setDialogVisible(false)}
-        header="Agregar Tipos"
+        header="Nuevo Artículo de Dotación"
         style={{ width: "50vw" }}
         modal
       >
         <div className="p-fluid">
           <div className="field">
-            <label>Selecciona un producto</label>
-            <Dropdown
-              value={productoSeleccionado}
-              options={listaTipos.map((p) => ({ label: p.producto, value: p.producto }))}
-              onChange={(e) => {
-                setProductoSeleccionado(e.value);
-                setNuevoProductoInput("");
-                const tipos = obtenerTiposPorProducto(e.value);
-                setTiposSeleccionados(tipos);
-              }}
-              placeholder="Selecciona producto existente"
-              className="mb-2"
-            />
-          </div>
-
-          <div className="field">
-            <label>O escribe un producto nuevo</label>
+            <label>Nombre del artículo*</label>
             <InputText
-              value={nuevoProductoInput}
-              onChange={(e) => {
-                setNuevoProductoInput(e.target.value);
-                setProductoSeleccionado("");
-                setTiposSeleccionados([]);
-              }}
-              placeholder="Ej: Chaleco Reflectivo"
-              className="mb-2"
+              value={nuevoArticulo.nombre}
+              onChange={(e) => setNuevoArticulo({...nuevoArticulo, nombre: e.target.value})}
+              placeholder="Ej: Chaleco reflectivo"
+              required
             />
           </div>
 
           <div className="field">
-            <label>Tipos existentes</label>
-            <MultiSelect
-              value={tiposSeleccionados}
-              options={obtenerTiposPorProducto(productoSeleccionado || nuevoProductoInput).map((t) => ({
-                label: t,
-                value: t,
-              }))}
-              onChange={(e) => setTiposSeleccionados(e.value)}
-              placeholder="Selecciona o escribe nuevos tipos"
-              display="chip"
+            <label>Descripción</label>
+            <InputText
+              value={nuevoArticulo.descripcion || ''}
+              onChange={(e) => setNuevoArticulo({
+                ...nuevoArticulo, 
+                descripcion: e.target.value || undefined
+              })}
+              placeholder="Descripción del artículo (opcional)"
             />
           </div>
 
           <div className="field">
-            <label>Agregar nuevo tipo</label>
-            <div className="flex gap-2">
-              <InputText
-                value={nuevoTipoInput}
-                onChange={(e) => setNuevoTipoInput(e.target.value)}
-                placeholder="Ej: Tipo nuevo"
-              />
-              <Button
-                icon="pi pi-plus"
-                className="p-button-sm"
-                onClick={agregarTipoSiNoExiste}
-              />
-            </div>
+            <label>Género*</label>
+            <Dropdown
+              value={nuevoArticulo.genero}
+              options={[
+                { label: 'Unisex', value: 'Unisex' },
+                { label: 'Masculino', value: 'Masculino' },
+                { label: 'Femenino', value: 'Femenino' }
+              ]}
+              onChange={(e) => setNuevoArticulo({...nuevoArticulo, genero: e.value})}
+              placeholder="Seleccione género"
+              className="w-full"
+              required
+            />
           </div>
 
-          <Button
-            label="Guardar"
-            icon="pi pi-check"
-            onClick={guardar}
-            className="p-button-success mt-3"
-          />
+          <div className="flex justify-content-end mt-3">
+            <Button
+              label="Cancelar"
+              icon="pi pi-times"
+              onClick={() => setDialogVisible(false)}
+              className="p-button-text"
+              disabled={loading}
+            />
+            <Button
+              label="Guardar"
+              icon="pi pi-check"
+              onClick={guardarArticulo}
+              loading={loading}
+              disabled={!nuevoArticulo.nombre.trim()}
+            />
+          </div>
         </div>
       </Dialog>
     </div>

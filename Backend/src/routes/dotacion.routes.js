@@ -4,50 +4,47 @@ const { check } = require("express-validator");
 const { verifyToken, isSuperAdmin } = require("../middleware/auth.middleware");
 const dotacionController = require("../controllers/dotacion.controller");
 
-// Validaciones
-const createUpdateValidations = [
-  check("id_subcategoria")
-    .isInt()
-    .withMessage("ID de subcategoría debe ser un número"),
+// Validaciones comunes para artículos
+const articuloValidations = [
+  check("nombre").isString().notEmpty().withMessage("Nombre es requerido"),
   check("descripcion").optional().isString(),
-  check("genero")
-    .optional()
-    .isIn(["M", "F", "U"])
-    .withMessage("Género no válido"),
-  check("stock_nuevo").optional().isInt({ min: 0 }).toInt(),
-  check("stock_reutilizable").optional().isInt({ min: 0 }).toInt(),
-  check("stock_minimo").optional().isInt({ min: 0 }).toInt(),
-  check("precio_unitario").optional().isFloat({ min: 0 }).toFloat(),
+  check("genero").isIn(["Masculino", "Femenino", "Unisex"]).withMessage("Género inválido"),
+  check("id_subcategoria").isInt().withMessage("Subcategoría inválida")
 ];
 
-// Rutas protegidas
-router.get("/", verifyToken, dotacionController.getAll);
+// Rutas para estructura jerárquica
 router.get("/categorias", verifyToken, dotacionController.getCategorias);
 router.get("/subcategorias", verifyToken, dotacionController.getSubcategorias);
-router.get("/:id", verifyToken, dotacionController.getById);
+router.get("/subcategorias/:id_categoria", verifyToken, dotacionController.getSubcategoriasByCategoria);
+router.get("/articulos", verifyToken, dotacionController.getArticulos);
+router.get("/articulos/:id_subcategoria", verifyToken, dotacionController.getArticulosBySubcategoria);
+
+// Rutas CRUD completas
+router.get("/", verifyToken, dotacionController.getAllArticulos);
+router.get("/:id", verifyToken, dotacionController.getArticuloById);
+router.get("/:id/tallas", verifyToken, dotacionController.getTallasByArticulo);
 
 router.post(
   "/",
   verifyToken,
   isSuperAdmin,
-  createUpdateValidations,
-  dotacionController.create
+  [...articuloValidations, check("tallas").optional().isArray()],
+  dotacionController.createArticulo
 );
 
 router.put(
   "/:id",
   verifyToken,
   isSuperAdmin,
-  createUpdateValidations,
-  dotacionController.update
+  [...articuloValidations, check("tallas").optional().isArray()],
+  dotacionController.updateArticulo
 );
 
-// dotacion.routes.js
 router.delete(
   "/:id",
   verifyToken,
   isSuperAdmin,
-  dotacionController.remove
+  dotacionController.deleteArticulo
 );
 
 module.exports = router;

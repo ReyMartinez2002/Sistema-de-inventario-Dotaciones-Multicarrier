@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
 const { validationResult } = require('express-validator');
+const db = require('../models');
+const pool = db.pool; // <-- Usa pool para consultas SQL directas
 
 // Configuración de validaciones
 exports.userValidations = {
@@ -40,7 +42,6 @@ const formatUserResponse = (user) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.getAll();
-    
     res.json({
       success: true,
       count: users.length,
@@ -74,7 +75,7 @@ exports.createUser = async (req, res) => {
     // Validación de campos obligatorios
     const requiredFields = ['username', 'password', 'nombre', 'rol', 'id_rol'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
-    
+
     if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
@@ -106,13 +107,13 @@ exports.createUser = async (req, res) => {
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     // Crear usuario
-    const newUser = await User.create({ 
-      username, 
-      password_hash, 
-      nombre, 
-      rol, 
-      id_rol, 
-      estado 
+    const newUser = await User.create({
+      username,
+      password_hash,
+      nombre,
+      rol,
+      id_rol,
+      estado
     });
 
     res.status(201).json({
@@ -157,11 +158,11 @@ exports.updateUser = async (req, res) => {
     }
 
     // Actualizar usuario
-    const updatedUser = await User.update(id, { 
-      nombre, 
-      rol, 
-      id_rol, 
-      estado 
+    const updatedUser = await User.update(id, {
+      nombre,
+      rol,
+      id_rol,
+      estado
     });
 
     res.json({
@@ -219,6 +220,7 @@ exports.changeUserStatus = async (req, res) => {
     });
   }
 };
+
 exports.changePassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -273,5 +275,27 @@ exports.changePassword = async (req, res) => {
       message: 'Error al cambiar contraseña',
       error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno'
     });
+  }
+};
+
+/**
+ * Controlador para historial de accesos de usuarios
+ * Consulta tabla usuarios_login_historial + username
+ */
+exports.getHistorialAccesos = async (req, res) => {
+  try {
+    const [results] = await pool.query(`
+      SELECT h.id, u.username, h.fecha_acceso, h.ip_acceso, h.exito
+      FROM usuarios_login_historial h
+      JOIN usuarios_login u ON h.id_usuario = u.id_usuario
+      ORDER BY h.fecha_acceso DESC
+    `);
+    res.json({
+      success: true,
+      count: results.length,
+      data: results
+    });
+  } catch (error) {
+    handleError(res, error, 'obtener historial de accesos');
   }
 };
