@@ -3,7 +3,8 @@ import type {
   ArticuloForm,
   TallaData,
   Categoria,
-  Subcategoria
+  Subcategoria,
+  StockData,
 } from "../types/Dotacion";
 
 export class DotacionApi {
@@ -40,6 +41,29 @@ export class DotacionApi {
         error instanceof Error ? error.message : 'Unknown API error'
       );
     }
+  }
+
+  // ==================== MÉTODOS PARA ARTÍCULOS ====================
+  
+  /**
+   * @deprecated Usar createArticulo en su lugar
+   */
+  create(token: string, data: ArticuloForm): Promise<{ id: number }> {
+    return this.createArticulo(token, data);
+  }
+
+  createArticulo(token: string, data: ArticuloForm): Promise<{ id: number }> {
+    if (!data.nombre || !data.id_subcategoria) {
+      return Promise.reject(new Error('Nombre e ID de subcategoría son requeridos'));
+    }
+    
+    const payload = {
+      ...data,
+      descripcion: data.descripcion || null,
+      genero: data.genero || 'Unisex'
+    };
+    
+    return this.request("/dotaciones/articulos", "POST", token, payload);
   }
 
   // ==================== CATEGORÍA MÉTODOS ====================
@@ -82,20 +106,6 @@ export class DotacionApi {
     return this.request(endpoint, "GET", token);
   }
 
-  createArticulo(token: string, data: ArticuloForm): Promise<{ id: number }> {
-    if (!data.nombre || !data.id_subcategoria) {
-      return Promise.reject(new Error('Nombre e ID de subcategoría son requeridos'));
-    }
-    
-    const payload = {
-      ...data,
-      descripcion: data.descripcion || null,
-      genero: data.genero || 'Unisex'
-    };
-    
-    return this.request("/dotaciones/articulos", "POST", token, payload);
-  }
-
   getAll(token: string): Promise<Articulo[]> {
     return this.request("/dotaciones/articulos", "GET", token);
   }
@@ -114,6 +124,35 @@ export class DotacionApi {
 
   deleteArticulo(id: number, token: string): Promise<{ ok: boolean }> {
     return this.request(`/dotaciones/articulos/${id}`, "DELETE", token);
+  }
+
+  // ==================== MÉTODOS PARA STOCK ====================
+  getStockByArticulo(token: string, idArticulo: number): Promise<StockData[]> {
+    return this.request(`/dotaciones/stock/articulo/${idArticulo}`, "GET", token);
+  }
+
+  ingresarStock(
+    token: string,
+    data: {
+      id_talla: number;
+      cantidad: number;
+      estado: 'nuevo' | 'reutilizable';
+      motivo?: string;
+    }
+  ): Promise<{ success: boolean }> {
+    return this.request("/dotaciones/stock/ingresar", "POST", token, data);
+  }
+
+  retirarStock(
+    token: string,
+    data: {
+      id_talla: number;
+      cantidad: number;
+      motivo: string;
+      id_empleado?: number;
+    }
+  ): Promise<{ success: boolean }> {
+    return this.request("/dotaciones/stock/retirar", "POST", token, data);
   }
 }
 

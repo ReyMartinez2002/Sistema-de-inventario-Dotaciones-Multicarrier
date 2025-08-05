@@ -122,6 +122,26 @@ const RegistrarDotacionNueva: React.FC = () => {
     toast.current?.show({ severity: "success", summary: "Éxito", detail: message, life: 3000 });
   }, []);
 
+  const validateForm = (): boolean => {
+    if (!formData.nombre.trim()) {
+      showError("El nombre del artículo es requerido");
+      return false;
+    }
+    if (formData.id_subcategoria <= 0) {
+      showError("Debe seleccionar una subcategoría válida");
+      return false;
+    }
+    if (tallasForm.some(t => !t.talla.trim())) {
+      showError("Todas las tallas deben tener un valor");
+      return false;
+    }
+    if (tallasForm.some(t => t.stock_nuevo < 0 || t.stock_reutilizable < 0)) {
+      showError("Los valores de stock no pueden ser negativos");
+      return false;
+    }
+    return true;
+  };
+
   const loadData = useCallback(async () => {
     if (!token) {
       showError("No estás autenticado");
@@ -150,7 +170,7 @@ const RegistrarDotacionNueva: React.FC = () => {
             id_talla: t.id_talla || 0,
             talla: t.talla,
             stock_nuevo: t.stock_nuevo,
-            stock_reutilizable: t.stock_reutilizable
+            stock_reutilizable: t.stock_reutilizable || 0
           }));
 
           return {
@@ -185,36 +205,35 @@ const RegistrarDotacionNueva: React.FC = () => {
       return;
     }
 
-    if (!formData.id_subcategoria || !formData.nombre || tallasForm.some(t => !t.talla)) {
-      showError("Por favor, completa todos los campos obligatorios");
+    if (!validateForm()) {
       return;
     }
 
     try {
       const payload: ArticuloData = {
         id_subcategoria: formData.id_subcategoria,
-        nombre: formData.nombre,
-        descripcion: formData.descripcion || undefined,
+        nombre: formData.nombre.trim(),
+        descripcion: formData.descripcion.trim() || undefined,
         genero: formData.genero,
         tallas: tallasForm
-          .filter(t => t.talla)
+          .filter(t => t.talla.trim())
           .map(t => ({
-            talla: t.talla,
+            talla: t.talla.trim(),
             stock_nuevo: t.stock_nuevo,
             stock_reutilizable: t.stock_reutilizable || undefined
           }))
       };
 
       if (selectedArticulo?.id_articulo) {
-        await dotacionApi.update(selectedArticulo.id_articulo, payload, token);
+        await dotacionApi.updateArticulo(selectedArticulo.id_articulo, payload, token);
         showSuccess("Artículo actualizado correctamente");
       } else {
-        await dotacionApi.create(payload, token);
+        await dotacionApi.createArticulo(payload, token);
         showSuccess("Artículo registrado correctamente");
       }
 
       resetForm();
-      loadData();
+      await loadData();
     } catch (error) {
       showError(`Error al guardar: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -259,7 +278,7 @@ const RegistrarDotacionNueva: React.FC = () => {
     }
 
     try {
-      await dotacionApi.delete(articulo.id_articulo, token);
+      await dotacionApi.deleteArticulo(articulo.id_articulo, token);
       showSuccess("Artículo eliminado correctamente");
       setArticulos(prev => prev.filter(a => a.id_articulo !== articulo.id_articulo));
     } catch (error) {
@@ -283,6 +302,7 @@ const RegistrarDotacionNueva: React.FC = () => {
     setSelectedArticulo(null);
     setRegisterDialog(false);
     setEditDialog(false);
+    setSubcategorias([]);
   };
 
   const getCurrentCategoriaId = (): number => {
@@ -351,6 +371,7 @@ const RegistrarDotacionNueva: React.FC = () => {
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               placeholder="Nombre del artículo"
+              required
             />
           </div>
           <div className="field col-12 md:col-4">
@@ -391,6 +412,7 @@ const RegistrarDotacionNueva: React.FC = () => {
                     value={talla.talla}
                     onChange={(e) => updateTalla(index, "talla", e.target.value)}
                     placeholder="Talla (ej. S, M, 38)"
+                    required
                   />
                 </div>
                 <div className="col-3">
@@ -400,6 +422,7 @@ const RegistrarDotacionNueva: React.FC = () => {
                     value={talla.stock_nuevo.toString()}
                     onChange={(e) => updateTalla(index, "stock_nuevo", parseInt(e.target.value) || 0)}
                     placeholder="Stock nuevo"
+                    required
                   />
                 </div>
                 <div className="col-3">
@@ -437,6 +460,7 @@ const RegistrarDotacionNueva: React.FC = () => {
             icon="pi pi-check"
             onClick={handleSubmit}
             className="p-button-success ml-2"
+            disabled={!formData.nombre.trim() || formData.id_subcategoria <= 0 || tallasForm.some(t => !t.talla.trim())}
           />
         </div>
       </div>
