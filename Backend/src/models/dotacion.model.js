@@ -1,19 +1,34 @@
 const db = require('../config/db');
 
 const Dotacion = {
-  // Obtener todas las categorías
+  // ==================== CATEGORÍA MÉTODOS ====================
   getCategorias: async () => {
     const [rows] = await db.query('SELECT * FROM categorias_dotacion');
     return rows;
   },
 
-  // Obtener todas las subcategorías
+  createCategoria: async (nombre) => {
+    const [result] = await db.query(
+      'INSERT INTO categorias_dotacion (nombre) VALUES (?)',
+      [nombre]
+    );
+    return result.insertId;
+  },
+
+  deleteCategoria: async (id) => {
+    const [result] = await db.query(
+      'DELETE FROM categorias_dotacion WHERE id_categoria = ?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // ==================== SUBCATEGORÍA MÉTODOS ====================
   getSubcategorias: async () => {
     const [rows] = await db.query('SELECT * FROM subcategorias_dotacion');
     return rows;
   },
 
-  // Obtener subcategorías por categoría
   getSubcategoriasByCategoria: async (idCategoria) => {
     const [rows] = await db.query(
       'SELECT * FROM subcategorias_dotacion WHERE id_categoria = ?',
@@ -22,7 +37,23 @@ const Dotacion = {
     return rows;
   },
 
-  // Obtener todos los artículos
+  createSubcategoria: async (data) => {
+    const [result] = await db.query(
+      'INSERT INTO subcategorias_dotacion (nombre, id_categoria, descripcion) VALUES (?, ?, ?)',
+      [data.nombre, data.id_categoria, data.descripcion || null]
+    );
+    return result.insertId;
+  },
+
+  deleteSubcategoria: async (id) => {
+    const [result] = await db.query(
+      'DELETE FROM subcategorias_dotacion WHERE id_subcategoria = ?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  },
+
+  // ==================== ARTÍCULO MÉTODOS ====================
   getArticulos: async () => {
     const [rows] = await db.query(
       'SELECT * FROM articulos_dotacion WHERE eliminado = 0'
@@ -30,7 +61,6 @@ const Dotacion = {
     return rows;
   },
 
-  // Obtener artículos por subcategoría
   getArticulosBySubcategoria: async (idSubcategoria) => {
     const [rows] = await db.query(
       'SELECT * FROM articulos_dotacion WHERE id_subcategoria = ? AND eliminado = 0',
@@ -39,7 +69,6 @@ const Dotacion = {
     return rows;
   },
 
-  // Obtener todos los artículos con sus tallas
   getAll: async () => {
     const [articulos] = await db.query(
       'SELECT * FROM articulos_dotacion WHERE eliminado = 0'
@@ -56,7 +85,6 @@ const Dotacion = {
     return articulos;
   },
 
-  // Obtener un artículo por ID
   getById: async (id) => {
     const [rows] = await db.query(
       'SELECT * FROM articulos_dotacion WHERE id_articulo = ? AND eliminado = 0',
@@ -75,7 +103,6 @@ const Dotacion = {
     return articulo;
   },
 
-  // Obtener tallas por artículo
   getTallasByArticulo: async (idArticulo) => {
     const [rows] = await db.query(
       'SELECT * FROM tallas_articulos WHERE id_articulo = ?',
@@ -84,7 +111,6 @@ const Dotacion = {
     return rows;
   },
 
-  // Crear un nuevo artículo
   create: async (data) => {
     const [result] = await db.query('INSERT INTO articulos_dotacion SET ?', [{
       ...data,
@@ -95,7 +121,6 @@ const Dotacion = {
     return result.insertId;
   },
 
-  // Actualizar un artículo
   update: async (id, data) => {
     const [result] = await db.query(
       'UPDATE articulos_dotacion SET ? WHERE id_articulo = ?',
@@ -107,7 +132,6 @@ const Dotacion = {
     return result.affectedRows > 0;
   },
 
-  // Eliminar (marcar como eliminado) un artículo
   remove: async (id) => {
     const [result] = await db.query(
       'UPDATE articulos_dotacion SET eliminado = 1 WHERE id_articulo = ?',
@@ -116,7 +140,6 @@ const Dotacion = {
     return result.affectedRows > 0;
   },
 
-  // Agregar talla a artículo
   addTalla: async (idArticulo, data) => {
     const [result] = await db.query('INSERT INTO tallas_articulos SET ?', [{
       ...data,
@@ -125,7 +148,6 @@ const Dotacion = {
     return result.insertId;
   },
 
-  // Actualizar talla de artículo
   updateTalla: async (idTalla, data) => {
     const [result] = await db.query(
       'UPDATE tallas_articulos SET ? WHERE id_talla = ?',
@@ -134,7 +156,6 @@ const Dotacion = {
     return result.affectedRows > 0;
   },
 
-  // Eliminar talla de artículo
   removeTalla: async (idTalla) => {
     const [result] = await db.query(
       'DELETE FROM tallas_articulos WHERE id_talla = ?',
@@ -143,7 +164,6 @@ const Dotacion = {
     return result.affectedRows > 0;
   },
 
-  // Eliminar todas las tallas de un artículo
   removeAllTallas: async (idArticulo) => {
     const [result] = await db.query(
       'DELETE FROM tallas_articulos WHERE id_articulo = ?',

@@ -204,7 +204,7 @@ const SidebarAdmin: React.FC<SidebarAdminProps> = ({
           className: activeItem === "reportes-dotaciones" ? "active-submenu-item" : "",
         },
         {
-          label: "Tipos",
+          label: "Categorías y SubCat...",
           icon: "pi pi-tags",
           command: () => handleMenuClick("gestionar-tipos-dotacion"),
           className: activeItem === "gestionar-tipos-dotacion" ? "active-submenu-item" : "",

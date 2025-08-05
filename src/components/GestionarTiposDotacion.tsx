@@ -8,7 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import tipoDotacionApi from "../services/dotacionApi";
 import { useAuth } from "../contex/useAuth";
-import type { Categoria, Subcategoria, Articulo, ArticuloForm } from "../types/Dotacion";
+import type { Categoria, Subcategoria } from "../types/Dotacion";
 
 const safeArray = (data: any): any[] => {
   if (Array.isArray(data)) return data;
@@ -20,15 +20,15 @@ const GestionarTiposDotacion: React.FC = () => {
   const { token } = useAuth();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [selectedCategoria, setSelectedCategoria] = useState<Categoria | null>(null);
   const [selectedSubcategoria, setSelectedSubcategoria] = useState<Subcategoria | null>(null);
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [nuevoArticulo, setNuevoArticulo] = useState<ArticuloForm>({
-    nombre: '',
-    descripcion: '',
-    genero: 'Unisex',
-    id_subcategoria: 0
+  const [categoriaDialog, setCategoriaDialog] = useState(false);
+  const [subcategoriaDialog, setSubcategoriaDialog] = useState(false);
+  const [nuevaCategoria, setNuevaCategoria] = useState({ nombre: '' });
+  const [nuevaSubcategoria, setNuevaSubcategoria] = useState({ 
+    nombre: '', 
+    descripcion: '', 
+    id_categoria: 0 
   });
   const [loading, setLoading] = useState(false);
   const toast = useRef<Toast>(null);
@@ -51,93 +51,101 @@ const GestionarTiposDotacion: React.FC = () => {
     });
   }, []);
 
+  // Cargar categorías al inicio
   useEffect(() => {
-    const cargarCategorias = async () => {
-      try {
-        const data = await tipoDotacionApi.getCategorias(token || '');
-        setCategorias(safeArray(data));
-      } catch (error) {
-        mostrarError(`Error al cargar categorías: ${error instanceof Error ? error.message : String(error)}`);
-        setCategorias([]);
-      }
-    };
     cargarCategorias();
-  }, [token, mostrarError]);
+  }, []);
 
-  useEffect(() => {
-    if (selectedCategoria) {
-      const cargarSubcategorias = async () => {
-        try {
-          const data = await tipoDotacionApi.getSubcategorias(token || '', selectedCategoria.id_categoria);
-          setSubcategorias(safeArray(data));
-          setSelectedSubcategoria(null);
-        } catch (error) {
-          mostrarError(`Error al cargar subcategorías: ${error instanceof Error ? error.message : String(error)}`);
-          setSubcategorias([]);
-        }
-      };
-      cargarSubcategorias();
-    } else {
-      setSubcategorias([]);
-      setSelectedSubcategoria(null);
+  const cargarCategorias = async () => {
+    try {
+      const data = await tipoDotacionApi.getCategorias(token || '');
+      setCategorias(safeArray(data));
+    } catch (error) {
+      mostrarError(`Error al cargar categorías: ${error instanceof Error ? error.message : String(error)}`);
+      setCategorias([]);
     }
-  }, [selectedCategoria, token, mostrarError]);
-
-  useEffect(() => {
-    if (selectedSubcategoria) {
-      const cargarArticulos = async () => {
-        try {
-          const data = await tipoDotacionApi.getArticulos(token || '', selectedSubcategoria.id_subcategoria);
-          setArticulos(safeArray(data));
-        } catch (error) {
-          mostrarError(`Error al cargar artículos: ${error instanceof Error ? error.message : String(error)}`);
-          setArticulos([]);
-        }
-      };
-      cargarArticulos();
-    } else {
-      setArticulos([]);
-    }
-  }, [selectedSubcategoria, token, mostrarError]);
-
-  const abrirDialogoNuevoArticulo = () => {
-    if (!selectedSubcategoria) {
-      mostrarError("Debe seleccionar una subcategoría primero");
-      return;
-    }
-    setNuevoArticulo({
-      nombre: '',
-      descripcion: '',
-      genero: 'Unisex',
-      id_subcategoria: selectedSubcategoria.id_subcategoria
-    });
-    setDialogVisible(true);
   };
 
-  const guardarArticulo = async () => {
-    if (!nuevoArticulo.nombre.trim()) {
-      mostrarError("El nombre del artículo es requerido");
+  const cargarSubcategorias = async (idCategoria: number) => {
+    try {
+      const data = await tipoDotacionApi.getSubcategorias(token || '', idCategoria);
+      setSubcategorias(safeArray(data));
+    } catch (error) {
+      mostrarError(`Error al cargar subcategorías: ${error instanceof Error ? error.message : String(error)}`);
+      setSubcategorias([]);
+    }
+  };
+
+  const crearCategoria = async () => {
+    if (!nuevaCategoria.nombre.trim()) {
+      mostrarError("El nombre de la categoría es requerido");
       return;
     }
 
     setLoading(true);
     try {
-      await tipoDotacionApi.createArticulo(token || '', {
-        ...nuevoArticulo,
-        descripcion: nuevoArticulo.descripcion || undefined
-      });
-      mostrarExito("Artículo creado exitosamente");
-      
-      if (selectedSubcategoria) {
-        const data = await tipoDotacionApi.getArticulos(token || '', selectedSubcategoria.id_subcategoria);
-        setArticulos(safeArray(data));
-      }
-      
-      setDialogVisible(false);
+      await tipoDotacionApi.createCategoria(token || '', nuevaCategoria);
+      mostrarExito("Categoría creada exitosamente");
+      setCategoriaDialog(false);
+      setNuevaCategoria({ nombre: '' });
+      await cargarCategorias();
     } catch (error) {
-      mostrarError(`Error al guardar el artículo: ${error instanceof Error ? error.message : String(error)}`);
+      mostrarError(`Error al crear categoría: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const crearSubcategoria = async () => {
+    if (!nuevaSubcategoria.nombre.trim() || !nuevaSubcategoria.id_categoria) {
+      mostrarError("Nombre y categoría son requeridos");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await tipoDotacionApi.createSubcategoria(token || '', nuevaSubcategoria);
+      mostrarExito("Subcategoría creada exitosamente");
+      setSubcategoriaDialog(false);
+      setNuevaSubcategoria({ nombre: '', descripcion: '', id_categoria: 0 });
+      if (nuevaSubcategoria.id_categoria) {
+        await cargarSubcategorias(nuevaSubcategoria.id_categoria);
+      }
+    } catch (error) {
+      mostrarError(`Error al crear subcategoría: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarCategoria = async (id: number) => {
+    if (!window.confirm("¿Está seguro de eliminar esta categoría? Se eliminarán todas sus subcategorías.")) {
+      return;
+    }
+
+    try {
+      await tipoDotacionApi.deleteCategoria(token || '', id);
+      mostrarExito("Categoría eliminada exitosamente");
+      await cargarCategorias();
+      setSubcategorias([]);
+    } catch (error) {
+      mostrarError(`Error al eliminar categoría: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const eliminarSubcategoria = async (id: number) => {
+    if (!window.confirm("¿Está seguro de eliminar esta subcategoría?")) {
+      return;
+    }
+
+    try {
+      await tipoDotacionApi.deleteSubcategoria(token || '', id);
+      mostrarExito("Subcategoría eliminada exitosamente");
+      if (selectedCategoria) {
+        await cargarSubcategorias(selectedCategoria.id_categoria);
+      }
+    } catch (error) {
+      mostrarError(`Error al eliminar subcategoría: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -145,123 +153,182 @@ const GestionarTiposDotacion: React.FC = () => {
     <div className="p-4">
       <Toast ref={toast} />
       <div className="card">
-        <h3 style={{ color: "#cd1818" }}>Gestión de Dotaciones</h3>
+        <h3 style={{ color: "#cd1818" }}>Gestión de Categorías y Subcategorías</h3>
 
-        <div className="grid mt-3">
-          <div className="col-12 md:col-4">
-            <label>Categoría</label>
-            <Dropdown
-              value={selectedCategoria}
-              options={safeArray(categorias)}
-              onChange={(e) => setSelectedCategoria(e.value)}
-              optionLabel="nombre"
-              placeholder="Seleccione una categoría"
-              className="w-full"
-            />
-          </div>
-
-          <div className="col-12 md:col-4">
-            <label>Subcategoría</label>
-            <Dropdown
-              value={selectedSubcategoria}
-              options={safeArray(subcategorias)}
-              onChange={(e) => setSelectedSubcategoria(e.value)}
-              optionLabel="nombre"
-              placeholder="Seleccione una subcategoría"
-              className="w-full"
-              disabled={!selectedCategoria}
-            />
-          </div>
-
-          <div className="col-12 md:col-4 flex align-items-end">
-            <Button
-              label="Nuevo Artículo"
-              icon="pi pi-plus"
-              className="p-button-danger"
-              onClick={abrirDialogoNuevoArticulo}
-              disabled={!selectedSubcategoria}
-            />
-          </div>
+        <div className="flex justify-content-between mb-4">
+          <Button
+            label="Nueva Categoría"
+            icon="pi pi-plus"
+            className="p-button-danger"
+            onClick={() => setCategoriaDialog(true)}
+          />
+          <Button
+            label="Nueva Subcategoría"
+            icon="pi pi-plus"
+            className="p-button-danger"
+            onClick={() => setSubcategoriaDialog(true)}
+            disabled={!selectedCategoria}
+          />
         </div>
 
-        <DataTable
-          value={safeArray(articulos)}
-          paginator
-          rows={5}
-          loading={loading}
-          emptyMessage="No hay artículos registrados"
-          className="mt-3"
-        >
-          <Column field="nombre" header="Nombre" sortable />
-          <Column 
-            field="descripcion" 
-            header="Descripción" 
-            body={(rowData) => rowData.descripcion || '-'} 
-          />
-          <Column field="genero" header="Género" />
-        </DataTable>
+        <div className="grid">
+          <div className="col-12 md:col-6">
+            <h4>Categorías</h4>
+            <DataTable
+              value={categorias}
+              selectionMode="single"
+              selection={selectedCategoria}
+              onSelectionChange={(e) => {
+                setSelectedCategoria(e.value);
+                if (e.value) {
+                  cargarSubcategorias(e.value.id_categoria);
+                }
+              }}
+              paginator
+              rows={5}
+              emptyMessage="No hay categorías registradas"
+            >
+              <Column field="nombre" header="Nombre" sortable />
+              <Column
+                header="Acciones"
+                body={(rowData: Categoria) => (
+                  <Button
+                    icon="pi pi-trash"
+                    className="p-button-rounded p-button-danger"
+                    onClick={() => eliminarCategoria(rowData.id_categoria)}
+                  />
+                )}
+                style={{ width: '80px' }}
+              />
+            </DataTable>
+          </div>
+
+          <div className="col-12 md:col-6">
+            <h4>Subcategorías</h4>
+            <DataTable
+              value={subcategorias}
+              selectionMode="single"
+              selection={selectedSubcategoria}
+              onSelectionChange={(e) => setSelectedSubcategoria(e.value)}
+              paginator
+              rows={5}
+              emptyMessage={selectedCategoria ? "No hay subcategorías" : "Seleccione una categoría"}
+            >
+              <Column field="nombre" header="Nombre" sortable />
+              <Column field="descripcion" header="Descripción" />
+              <Column
+                header="Acciones"
+                body={(rowData: Subcategoria) => (
+                  <Button
+                    icon="pi pi-trash"
+                    className="p-button-rounded p-button-danger"
+                    onClick={() => eliminarSubcategoria(rowData.id_subcategoria)}
+                  />
+                )}
+                style={{ width: '80px' }}
+              />
+            </DataTable>
+          </div>
+        </div>
       </div>
 
+      {/* Diálogo para nueva categoría */}
       <Dialog
-        visible={dialogVisible}
-        onHide={() => setDialogVisible(false)}
-        header="Nuevo Artículo de Dotación"
+        visible={categoriaDialog}
+        onHide={() => setCategoriaDialog(false)}
+        header="Nueva Categoría"
         style={{ width: "50vw" }}
         modal
       >
         <div className="p-fluid">
           <div className="field">
-            <label>Nombre del artículo*</label>
+            <label>Nombre de la categoría*</label>
             <InputText
-              value={nuevoArticulo.nombre}
-              onChange={(e) => setNuevoArticulo({...nuevoArticulo, nombre: e.target.value})}
-              placeholder="Ej: Chaleco reflectivo"
+              value={nuevaCategoria.nombre}
+              onChange={(e) => setNuevaCategoria({ nombre: e.target.value })}
+              placeholder="Ej: Ropa de trabajo"
               required
             />
           </div>
-
-          <div className="field">
-            <label>Descripción</label>
-            <InputText
-              value={nuevoArticulo.descripcion || ''}
-              onChange={(e) => setNuevoArticulo({
-                ...nuevoArticulo, 
-                descripcion: e.target.value || undefined
-              })}
-              placeholder="Descripción del artículo (opcional)"
-            />
-          </div>
-
-          <div className="field">
-            <label>Género*</label>
-            <Dropdown
-              value={nuevoArticulo.genero}
-              options={[
-                { label: 'Unisex', value: 'Unisex' },
-                { label: 'Masculino', value: 'Masculino' },
-                { label: 'Femenino', value: 'Femenino' }
-              ]}
-              onChange={(e) => setNuevoArticulo({...nuevoArticulo, genero: e.value})}
-              placeholder="Seleccione género"
-              className="w-full"
-              required
-            />
-          </div>
-
           <div className="flex justify-content-end mt-3">
             <Button
               label="Cancelar"
               icon="pi pi-times"
-              onClick={() => setDialogVisible(false)}
+              onClick={() => setCategoriaDialog(false)}
               className="p-button-text"
-              disabled={loading}
             />
             <Button
               label="Guardar"
               icon="pi pi-check"
-              onClick={guardarArticulo}
+              onClick={crearCategoria}
               loading={loading}
-              disabled={!nuevoArticulo.nombre.trim()}
+              disabled={!nuevaCategoria.nombre.trim()}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Diálogo para nueva subcategoría */}
+      <Dialog
+        visible={subcategoriaDialog}
+        onHide={() => setSubcategoriaDialog(false)}
+        header="Nueva Subcategoría"
+        style={{ width: "50vw" }}
+        modal
+      >
+        <div className="p-fluid">
+          <div className="field">
+            <label>Categoría*</label>
+            <Dropdown
+              value={nuevaSubcategoria.id_categoria}
+              options={categorias.map(c => ({
+                label: c.nombre,
+                value: c.id_categoria
+              }))}
+              onChange={(e) => setNuevaSubcategoria({
+                ...nuevaSubcategoria,
+                id_categoria: e.value
+              })}
+              placeholder="Seleccione categoría"
+              className="w-full"
+            />
+          </div>
+          <div className="field">
+            <label>Nombre de la subcategoría*</label>
+            <InputText
+              value={nuevaSubcategoria.nombre}
+              onChange={(e) => setNuevaSubcategoria({
+                ...nuevaSubcategoria,
+                nombre: e.target.value
+              })}
+              placeholder="Ej: Chalecos"
+              required
+            />
+          </div>
+          <div className="field">
+            <label>Descripción</label>
+            <InputText
+              value={nuevaSubcategoria.descripcion}
+              onChange={(e) => setNuevaSubcategoria({
+                ...nuevaSubcategoria,
+                descripcion: e.target.value
+              })}
+              placeholder="Descripción opcional"
+            />
+          </div>
+          <div className="flex justify-content-end mt-3">
+            <Button
+              label="Cancelar"
+              icon="pi pi-times"
+              onClick={() => setSubcategoriaDialog(false)}
+              className="p-button-text"
+            />
+            <Button
+              label="Guardar"
+              icon="pi pi-check"
+              onClick={crearSubcategoria}
+              loading={loading}
+              disabled={!nuevaSubcategoria.nombre.trim() || !nuevaSubcategoria.id_categoria}
             />
           </div>
         </div>
