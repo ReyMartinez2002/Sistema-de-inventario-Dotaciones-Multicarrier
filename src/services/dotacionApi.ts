@@ -192,7 +192,6 @@ async getAll(token: string): Promise<Articulo[]> {
     );
     return resp.data;
   }
-
   ingresarStock(
     token: string,
     data: {

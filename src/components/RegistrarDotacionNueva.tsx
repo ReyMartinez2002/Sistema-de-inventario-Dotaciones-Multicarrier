@@ -86,8 +86,6 @@ const RegistrarDotacionNueva: React.FC = () => {
       setArticulos(articulosData);
       setCategorias(categoriasData);
       setAllSubcategorias(subcategoriasData);
-
-      console.log("[DotacionUI] Datos cargados correctamente.");
     } catch (error) {
       showError(`Error al cargar datos: ${error instanceof Error ? error.message : String(error)}`);
       setArticulos([]);
