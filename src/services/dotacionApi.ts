@@ -10,14 +10,17 @@ import type {
 export class DotacionApi {
   private baseUrl: string = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-  private async request<T>(
+private async request<T>(
     endpoint: string,
     method: "GET" | "POST" | "PUT" | "DELETE",
     token: string,
     body?: object
   ): Promise<T> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const url = `${this.baseUrl}${endpoint}`;
+      console.log(`[DotacionApi] Request:`, { method, url, body });
+
+      const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -26,25 +29,40 @@ export class DotacionApi {
         body: body ? JSON.stringify(body) : undefined,
       });
 
+      const contentType = response.headers.get("content-type");
+      let responseData: unknown;
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+
+      console.log(`[DotacionApi] Response:`, { url, status: response.status, responseData });
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || 
-                         errorData.error || 
-                         `Error ${response.status}: ${response.statusText}`;
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
+        // Solo si es un objeto, intenta extraer 'message' o 'error'
+        if (typeof responseData === "object" && responseData !== null) {
+          const obj = responseData as Record<string, unknown>;
+          if (typeof obj.message === "string") errorMessage = obj.message;
+          else if (typeof obj.error === "string") errorMessage = obj.error;
+        }
         throw new Error(errorMessage);
       }
 
-      return response.json();
+      return responseData as T;
     } catch (error) {
-      console.error(`API Error - ${method} ${endpoint}:`, error);
+      console.error(`[DotacionApi] API Error - ${method} ${endpoint}:`, error);
       throw new Error(
-        error instanceof Error ? error.message : 'Unknown API error'
+        error instanceof Error ? error.message : "Unknown API error"
       );
     }
   }
 
+
+
   // ==================== MÉTODOS PARA ARTÍCULOS ====================
-  
+
   /**
    * @deprecated Usar createArticulo en su lugar
    */
@@ -54,21 +72,28 @@ export class DotacionApi {
 
   createArticulo(token: string, data: ArticuloForm): Promise<{ id: number }> {
     if (!data.nombre || !data.id_subcategoria) {
-      return Promise.reject(new Error('Nombre e ID de subcategoría son requeridos'));
+      return Promise.reject(
+        new Error("Nombre e ID de subcategoría son requeridos")
+      );
     }
-    
+
     const payload = {
       ...data,
       descripcion: data.descripcion || null,
-      genero: data.genero || 'Unisex'
+      genero: data.genero || "Unisex",
     };
-    
+
     return this.request("/dotaciones/articulos", "POST", token, payload);
   }
 
   // ==================== CATEGORÍA MÉTODOS ====================
-  getCategorias(token: string): Promise<Categoria[]> {
-    return this.request("/dotaciones/categorias", "GET", token);
+  async getCategorias(token: string): Promise<Categoria[]> {
+    const resp = await this.request<{ success: boolean; data: Categoria[] }>(
+      "/dotaciones/categorias",
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
   createCategoria(token: string, data: { nombre: string }): Promise<{ id: number }> {
@@ -80,15 +105,20 @@ export class DotacionApi {
   }
 
   // ==================== SUBCATEGORÍA MÉTODOS ====================
-  getSubcategorias(token: string, idCategoria?: number): Promise<Subcategoria[]> {
-    const endpoint = idCategoria 
+  async getSubcategorias(token: string, idCategoria?: number): Promise<Subcategoria[]> {
+    const endpoint = idCategoria
       ? `/dotaciones/subcategorias/${idCategoria}`
       : "/dotaciones/subcategorias";
-    return this.request(endpoint, "GET", token);
+    const resp = await this.request<{ success: boolean; data: Subcategoria[] }>(
+      endpoint,
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
   createSubcategoria(
-    token: string, 
+    token: string,
     data: { nombre: string; descripcion?: string; id_categoria: number }
   ): Promise<{ id: number }> {
     return this.request("/dotaciones/subcategorias", "POST", token, data);
@@ -99,26 +129,50 @@ export class DotacionApi {
   }
 
   // ==================== ARTÍCULO MÉTODOS ====================
-  getArticulos(token: string, idSubcategoria?: number): Promise<Articulo[]> {
+  async getArticulos(token: string, idSubcategoria?: number): Promise<Articulo[]> {
     const endpoint = idSubcategoria
       ? `/dotaciones/articulos/${idSubcategoria}`
       : "/dotaciones/articulos";
-    return this.request(endpoint, "GET", token);
+    const resp = await this.request<{ success: boolean; data: Articulo[] }>(
+      endpoint,
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
-  getAll(token: string): Promise<Articulo[]> {
-    return this.request("/dotaciones/articulos", "GET", token);
+async getAll(token: string): Promise<Articulo[]> {
+  const resp = await this.request<{ success: boolean; data: Articulo[] }>(
+    "/dotaciones/articulos/all",
+    "GET",
+    token
+  );
+  return resp.data;
+}
+
+  async getById(id: number, token: string): Promise<Articulo> {
+    const resp = await this.request<{ success: boolean; data: Articulo }>(
+      `/dotaciones/articulos/${id}`,
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
-  getById(id: number, token: string): Promise<Articulo> {
-    return this.request(`/dotaciones/articulos/${id}`, "GET", token);
+  async getTallasByArticulo(id: number, token: string): Promise<TallaData[]> {
+    const resp = await this.request<{ success: boolean; data: TallaData[] }>(
+      `/dotaciones/articulos/${id}/tallas`,
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
-  getTallasByArticulo(id: number, token: string): Promise<TallaData[]> {
-    return this.request(`/dotaciones/articulos/${id}/tallas`, "GET", token);
-  }
-
-  updateArticulo(id: number, data: ArticuloForm, token: string): Promise<{ ok: boolean }> {
+  updateArticulo(
+    id: number,
+    data: ArticuloForm,
+    token: string
+  ): Promise<{ ok: boolean }> {
     return this.request(`/dotaciones/articulos/${id}`, "PUT", token, data);
   }
 
@@ -127,8 +181,16 @@ export class DotacionApi {
   }
 
   // ==================== MÉTODOS PARA STOCK ====================
-  getStockByArticulo(token: string, idArticulo: number): Promise<StockData[]> {
-    return this.request(`/dotaciones/stock/articulo/${idArticulo}`, "GET", token);
+  async getStockByArticulo(
+    token: string,
+    idArticulo: number
+  ): Promise<StockData[]> {
+    const resp = await this.request<{ success: boolean; data: StockData[] }>(
+      `/dotaciones/stock/articulo/${idArticulo}`,
+      "GET",
+      token
+    );
+    return resp.data;
   }
 
   ingresarStock(
@@ -136,7 +198,7 @@ export class DotacionApi {
     data: {
       id_talla: number;
       cantidad: number;
-      estado: 'nuevo' | 'reutilizable';
+      estado: "nuevo" | "reutilizable";
       motivo?: string;
     }
   ): Promise<{ success: boolean }> {

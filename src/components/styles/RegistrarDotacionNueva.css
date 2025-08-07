@@ -52,3 +52,7 @@
 .btn-cancelar {
     border: solid 1px;
 }
+.texto-talla {
+    font-size: 0.6rem;
+    font-weight: 600;
+}

@@ -8,14 +8,16 @@ const dotacionController = require("../controllers/dotacion.controller");
 const articuloValidations = [
   check("nombre").isString().notEmpty().withMessage("Nombre es requerido"),
   check("descripcion").optional().isString(),
-  check("genero").isIn(["Masculino", "Femenino", "Unisex"]).withMessage("Género inválido"),
-  check("id_subcategoria").isInt().withMessage("Subcategoría inválida")
+  check("genero")
+    .isIn(["Masculino", "Femenino", "Unisex"])
+    .withMessage("Género inválido"),
+  check("id_subcategoria").isInt().withMessage("Subcategoría inválida"),
 ];
 
 const tallaValidations = [
   check("talla").isString().notEmpty().withMessage("Talla es requerida"),
   check("stock_nuevo").optional().isInt({ min: 0 }),
-  check("stock_reutilizable").optional().isInt({ min: 0 })
+  check("stock_reutilizable").optional().isInt({ min: 0 }),
 ];
 
 // ==================== RUTAS PARA CATEGORÍAS ====================
@@ -36,7 +38,11 @@ router.delete(
 
 // ==================== RUTAS PARA SUBCATEGORÍAS ====================
 router.get("/subcategorias", verifyToken, dotacionController.getSubcategorias);
-router.get("/subcategorias/:id_categoria", verifyToken, dotacionController.getSubcategoriasByCategoria);
+router.get(
+  "/subcategorias/:id_categoria",
+  verifyToken,
+  dotacionController.getSubcategoriasByCategoria
+);
 router.post(
   "/subcategorias",
   verifyToken,
@@ -44,7 +50,7 @@ router.post(
   [
     check("nombre").isString().notEmpty().withMessage("Nombre es requerido"),
     check("id_categoria").isInt().withMessage("ID de categoría inválido"),
-    check("descripcion").optional().isString()
+    check("descripcion").optional().isString(),
   ],
   dotacionController.createSubcategoria
 );
@@ -59,7 +65,11 @@ router.delete(
 router.get("/articulos", verifyToken, dotacionController.getArticulos);
 router.get("/articulos/all", verifyToken, dotacionController.getAllArticulos);
 router.get("/articulos/:id", verifyToken, dotacionController.getArticuloById);
-router.get("/articulos/subcategoria/:id_subcategoria", verifyToken, dotacionController.getArticulosBySubcategoria);
+router.get(
+  "/articulos/subcategoria/:id_subcategoria",
+  verifyToken,
+  dotacionController.getArticulosBySubcategoria
+);
 router.post(
   "/articulos",
   verifyToken,
@@ -82,7 +92,11 @@ router.delete(
 );
 
 // ==================== RUTAS PARA TALLAS ====================
-router.get("/articulos/:id/tallas", verifyToken, dotacionController.getTallasByArticulo);
+router.get(
+  "/articulos/:id/tallas",
+  verifyToken,
+  dotacionController.getTallasByArticulo
+);
 router.post(
   "/articulos/:id/tallas",
   verifyToken,
@@ -105,7 +119,11 @@ router.delete(
 );
 
 // ==================== RUTAS PARA STOCK ====================
-router.get("/stock/articulo/:idArticulo", verifyToken, dotacionController.getStockByArticulo);
+router.get(
+  "/stock/articulo/:idArticulo",
+  verifyToken,
+  dotacionController.getStockByArticulo
+);
 router.post(
   "/stock/ingresar",
   verifyToken,
@@ -113,8 +131,8 @@ router.post(
   [
     check("id_talla").isInt(),
     check("cantidad").isInt({ min: 1 }),
-    check("estado").isIn(['nuevo', 'reutilizable']),
-    check("motivo").optional().isString()
+    check("estado").isIn(["nuevo", "reutilizable"]),
+    check("motivo").optional().isString(),
   ],
   dotacionController.ingresarStock
 );
@@ -126,7 +144,7 @@ router.post(
     check("id_talla").isInt(),
     check("cantidad").isInt({ min: 1 }),
     check("motivo").isString(),
-    check("id_empleado").optional().isInt()
+    check("id_empleado").optional().isInt(),
   ],
   dotacionController.retirarStock
 );

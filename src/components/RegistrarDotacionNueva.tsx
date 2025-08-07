@@ -8,56 +8,10 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Chip } from "primereact/chip";
 import { addLocale } from "primereact/api";
-import { DotacionApi } from "../services/dotacionApi";
+import DotacionApi from "../services/dotacionApi";
 import { useAuth } from "../contex/useAuth";
 import "./styles/RegistrarDotacionNueva.css";
-
-type Genero = 'Masculino' | 'Femenino' | 'Unisex';
-
-interface TallaData {
-  talla: string;
-  stock_nuevo: number;
-  stock_reutilizable?: number;
-  id_talla?: number;
-}
-
-interface ArticuloData {
-  id_subcategoria: number;
-  nombre: string;
-  descripcion?: string;
-  genero?: Genero;
-  tallas?: TallaData[];
-}
-
-interface ArticuloApiResponse {
-  id_articulo: number;
-  id_subcategoria: number;
-  nombre: string;
-  descripcion: string | null;
-  genero: string;
-  fecha_creacion: string;
-  fecha_actualizacion: string | null;
-  eliminado: boolean;
-}
-
-interface Articulo extends ArticuloData {
-  id_articulo: number;
-  subcategoria?: string;
-  categoria?: string;
-  tallas?: (TallaData & { id_talla: number })[];
-}
-
-interface Categoria {
-  id_categoria: number;
-  nombre: string;
-}
-
-interface Subcategoria {
-  id_subcategoria: number;
-  id_categoria: number;
-  nombre: string;
-  descripcion?: string;
-}
+import type { Articulo, ArticuloForm, Genero, Categoria, Subcategoria } from "../types/Dotacion";
 
 interface FormData {
   id_subcategoria: number;
@@ -67,28 +21,22 @@ interface FormData {
 }
 
 interface TallaForm {
+  id_talla?: number;
   talla: string;
   stock_nuevo: number;
   stock_reutilizable: number;
 }
 
-const safeArray = (data: any): any[] => {
-  if (Array.isArray(data)) return data;
-  if (data?.data && Array.isArray(data.data)) return data.data;
-  return [];
-};
-
 const RegistrarDotacionNueva: React.FC = () => {
   const { token } = useAuth();
-  const dotacionApi = useRef(new DotacionApi()).current;
   const [formData, setFormData] = useState<FormData>({
     id_subcategoria: 0,
     nombre: "",
     descripcion: "",
-    genero: "Unisex"
+    genero: "Unisex",
   });
   const [tallasForm, setTallasForm] = useState<TallaForm[]>([
-    { talla: "", stock_nuevo: 0, stock_reutilizable: 0 }
+    { talla: "", stock_nuevo: 0, stock_reutilizable: 0 },
   ]);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -106,8 +54,8 @@ const RegistrarDotacionNueva: React.FC = () => {
     dayNamesShort: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
     dayNamesMin: ["D", "L", "M", "X", "J", "V", "S"],
     monthNames: [
-      "enero", "febrero", "marzo", "abril", "mayo", "junio", 
-      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
     ],
     monthNamesShort: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
     today: "Hoy",
@@ -115,127 +63,119 @@ const RegistrarDotacionNueva: React.FC = () => {
   });
 
   const showError = useCallback((message: string) => {
-    toast.current?.show({ severity: "error", summary: "Error", detail: message, life: 3000 });
+    toast.current?.show({ severity: "error", summary: "Error", detail: message, life: 4000 });
+    console.error(`[DotacionUI] ERROR: ${message}`);
   }, []);
 
   const showSuccess = useCallback((message: string) => {
     toast.current?.show({ severity: "success", summary: "Éxito", detail: message, life: 3000 });
+    console.log(`[DotacionUI] SUCCESS: ${message}`);
   }, []);
-
-  const validateForm = (): boolean => {
-    if (!formData.nombre.trim()) {
-      showError("El nombre del artículo es requerido");
-      return false;
-    }
-    if (formData.id_subcategoria <= 0) {
-      showError("Debe seleccionar una subcategoría válida");
-      return false;
-    }
-    if (tallasForm.some(t => !t.talla.trim())) {
-      showError("Todas las tallas deben tener un valor");
-      return false;
-    }
-    if (tallasForm.some(t => t.stock_nuevo < 0 || t.stock_reutilizable < 0)) {
-      showError("Los valores de stock no pueden ser negativos");
-      return false;
-    }
-    return true;
-  };
 
   const loadData = useCallback(async () => {
     if (!token) {
       showError("No estás autenticado");
       return;
     }
-
     try {
-      const [articulosResponse, categoriasResponse, subcategoriasResponse] = await Promise.all([
-        dotacionApi.getAll(token),
-        dotacionApi.getCategorias(token),
-        dotacionApi.getSubcategorias(token),
-      ]);
+      console.log("[DotacionUI] Cargando datos iniciales...");
+      const articulosData = await DotacionApi.getAll(token);
+      const categoriasData = await DotacionApi.getCategorias(token);
+      const subcategoriasData = await DotacionApi.getSubcategorias(token);
 
-      const articulosData = safeArray(articulosResponse);
-      const categoriasData = safeArray(categoriasResponse);
-      const subcategoriasData = safeArray(subcategoriasResponse);
-
-      const articulosFormateados = await Promise.all(
-        articulosData.map(async (articulo: ArticuloApiResponse) => {
-          const subcat = subcategoriasData.find((sc) => sc.id_subcategoria === articulo.id_subcategoria);
-          const cat = subcat ? categoriasData.find((c) => c.id_categoria === subcat.id_categoria) : undefined;
-          
-          const tallasStock = safeArray(await dotacionApi.getTallasByArticulo(articulo.id_articulo, token));
-          
-          const tallas: (TallaData & { id_talla: number })[] = tallasStock.map(t => ({
-            id_talla: t.id_talla || 0,
-            talla: t.talla,
-            stock_nuevo: t.stock_nuevo,
-            stock_reutilizable: t.stock_reutilizable || 0
-          }));
-
-          return {
-            id_articulo: articulo.id_articulo,
-            id_subcategoria: articulo.id_subcategoria,
-            nombre: articulo.nombre,
-            descripcion: articulo.descripcion || '',
-            genero: articulo.genero as Genero,
-            subcategoria: subcat?.nombre,
-            categoria: cat?.nombre,
-            tallas: tallas
-          };
-        })
-      );
-
-      setArticulos(articulosFormateados);
+      setArticulos(articulosData);
       setCategorias(categoriasData);
       setAllSubcategorias(subcategoriasData);
+
+      console.log("[DotacionUI] Datos cargados correctamente.");
     } catch (error) {
       showError(`Error al cargar datos: ${error instanceof Error ? error.message : String(error)}`);
       setArticulos([]);
     }
-  }, [token, dotacionApi, showError]);
+  }, [token, showError]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadSubcategorias = async (id_categoria: number) => {
+    setFormData(prev => ({ ...prev, id_subcategoria: 0 }));
+    if (!id_categoria || !token) {
+      setSubcategorias([]);
+      return;
+    }
+    try {
+      console.log(`[DotacionUI] Cargando subcategorías para categoría ${id_categoria}...`);
+      const subcats = await DotacionApi.getSubcategorias(token, id_categoria);
+      setSubcategorias(subcats);
+      console.log("[DotacionUI] Subcategorías cargadas:", subcats);
+    } catch (err) {
+      setSubcategorias([]);
+      showError("No se pudieron cargar subcategorías." + err);
+    }
+  };
+
+  const getCurrentCategoriaId = (): number => {
+    if (formData.id_subcategoria) {
+      const subcat = allSubcategorias.find(sc => sc.id_subcategoria === formData.id_subcategoria);
+      return subcat?.id_categoria || 0;
+    }
+    return 0;
+  };
 
   const handleSubmit = async () => {
     if (!token) {
       showError("No estás autenticado");
       return;
     }
-
-    if (!validateForm()) {
+    if (!formData.nombre.trim()) {
+      showError("Por favor ingrese un nombre válido para el artículo");
       return;
     }
-
+    if (!formData.id_subcategoria || formData.id_subcategoria <= 0) {
+      showError("Por favor seleccione una subcategoría válida");
+      return;
+    }
     try {
-      const payload: ArticuloData = {
-        id_subcategoria: formData.id_subcategoria,
+      const tallasValidas = tallasForm
+        .filter(t => t.talla && t.talla.trim())
+        .map(t => ({
+          id_talla: t.id_talla,
+          talla: t.talla.trim(),
+          stock_nuevo: Math.max(0, Number(t.stock_nuevo) || 0),
+          stock_reutilizable: Math.max(0, Number(t.stock_reutilizable) || 0),
+        }));
+
+      if (tallasValidas.length === 0) {
+        showError("Debe agregar al menos una talla válida");
+        return;
+      }
+
+      const payload: ArticuloForm = {
+        id_subcategoria: Number(formData.id_subcategoria),
         nombre: formData.nombre.trim(),
-        descripcion: formData.descripcion.trim() || undefined,
+        descripcion: formData.descripcion?.trim() || undefined,
         genero: formData.genero,
-        tallas: tallasForm
-          .filter(t => t.talla.trim())
-          .map(t => ({
-            talla: t.talla.trim(),
-            stock_nuevo: t.stock_nuevo,
-            stock_reutilizable: t.stock_reutilizable || undefined
-          }))
+        tallas: tallasValidas,
       };
 
+      console.log("[DotacionUI] Enviando payload:", payload);
+
       if (selectedArticulo?.id_articulo) {
-        await dotacionApi.updateArticulo(selectedArticulo.id_articulo, payload, token);
+        await DotacionApi.updateArticulo(selectedArticulo.id_articulo, payload, token);
         showSuccess("Artículo actualizado correctamente");
       } else {
-        await dotacionApi.createArticulo(payload, token);
+        await DotacionApi.createArticulo(token, payload);
         showSuccess("Artículo registrado correctamente");
       }
 
       resetForm();
       await loadData();
     } catch (error) {
-      showError(`Error al guardar: ${error instanceof Error ? error.message : String(error)}`);
+      console.error("[DotacionUI] ERROR DETALLADO:", error);
+      const errorMessage = error instanceof Error ? error.message :
+        "Ocurrió un error inesperado al guardar el artículo";
+      showError(errorMessage);
     }
   };
 
@@ -244,19 +184,20 @@ const RegistrarDotacionNueva: React.FC = () => {
       id_subcategoria: articulo.id_subcategoria,
       nombre: articulo.nombre,
       descripcion: articulo.descripcion || "",
-      genero: articulo.genero || "Unisex"
+      genero: articulo.genero,
     });
 
     setTallasForm(
       articulo.tallas?.map(t => ({
+        id_talla: t.id_talla,
         talla: t.talla,
         stock_nuevo: t.stock_nuevo,
-        stock_reutilizable: t.stock_reutilizable || 0
+        stock_reutilizable: t.stock_reutilizable || 0,
       })) || [{ talla: "", stock_nuevo: 0, stock_reutilizable: 0 }]
     );
 
     setSelectedArticulo(articulo);
-    
+
     if (articulo.id_subcategoria) {
       const subcat = allSubcategorias.find(sc => sc.id_subcategoria === articulo.id_subcategoria);
       if (subcat) {
@@ -272,13 +213,11 @@ const RegistrarDotacionNueva: React.FC = () => {
       showError("No se puede eliminar: falta información de autenticación");
       return;
     }
-
     if (!window.confirm(`¿Estás seguro de eliminar "${articulo.nombre}"?`)) {
       return;
     }
-
     try {
-      await dotacionApi.deleteArticulo(articulo.id_articulo, token);
+      await DotacionApi.deleteArticulo(articulo.id_articulo, token);
       showSuccess("Artículo eliminado correctamente");
       setArticulos(prev => prev.filter(a => a.id_articulo !== articulo.id_articulo));
     } catch (error) {
@@ -286,17 +225,12 @@ const RegistrarDotacionNueva: React.FC = () => {
     }
   };
 
-  const loadSubcategorias = (id_categoria: number) => {
-    setSubcategorias(allSubcategorias.filter(sc => sc.id_categoria === id_categoria));
-    setFormData(prev => ({ ...prev, id_subcategoria: 0 }));
-  };
-
   const resetForm = () => {
     setFormData({
       id_subcategoria: 0,
       nombre: "",
       descripcion: "",
-      genero: "Unisex"
+      genero: "Unisex",
     });
     setTallasForm([{ talla: "", stock_nuevo: 0, stock_reutilizable: 0 }]);
     setSelectedArticulo(null);
@@ -305,24 +239,10 @@ const RegistrarDotacionNueva: React.FC = () => {
     setSubcategorias([]);
   };
 
-  const getCurrentCategoriaId = (): number => {
-    if (formData.id_subcategoria) {
-      const subcat = allSubcategorias.find(sc => sc.id_subcategoria === formData.id_subcategoria);
-      return subcat?.id_categoria || 0;
-    }
-    return 0;
-  };
-
-  const addTalla = () => {
-    setTallasForm([...tallasForm, { talla: "", stock_nuevo: 0, stock_reutilizable: 0 }]);
-  };
-
+  const addTalla = () => setTallasForm([...tallasForm, { talla: "", stock_nuevo: 0, stock_reutilizable: 0 }]);
   const removeTalla = (index: number) => {
-    if (tallasForm.length > 1) {
-      setTallasForm(tallasForm.filter((_, i) => i !== index));
-    }
+    if (tallasForm.length > 1) setTallasForm(tallasForm.filter((_, i) => i !== index));
   };
-
   const updateTalla = (index: number, field: keyof TallaForm, value: string | number) => {
     const updatedTallas = [...tallasForm];
     updatedTallas[index] = { ...updatedTallas[index], [field]: value };
@@ -346,11 +266,13 @@ const RegistrarDotacionNueva: React.FC = () => {
               value={getCurrentCategoriaId()}
               options={[
                 { label: "Seleccione categoría", value: 0 },
-                ...safeArray(categorias).map(c => ({ label: c.nombre, value: c.id_categoria }))
+                ...categorias.map(c => ({ label: c.nombre, value: c.id_categoria })),
               ]}
               onChange={(e) => loadSubcategorias(e.value)}
               placeholder="Seleccione categoría"
+              className={!getCurrentCategoriaId() ? "p-invalid" : ""}
             />
+            {!getCurrentCategoriaId() && <small className="p-error">Categoría es requerida</small>}
           </div>
           <div className="field col-12 md:col-6">
             <label>Subcategoría *</label>
@@ -358,12 +280,14 @@ const RegistrarDotacionNueva: React.FC = () => {
               value={formData.id_subcategoria}
               options={[
                 { label: "Seleccione subcategoría", value: 0 },
-                ...safeArray(subcategorias).map(sc => ({ label: sc.nombre, value: sc.id_subcategoria }))
+                ...subcategorias.map(sc => ({ label: sc.nombre, value: sc.id_subcategoria })),
               ]}
               onChange={(e) => setFormData({ ...formData, id_subcategoria: e.value })}
               placeholder="Seleccione subcategoría"
+              className={!formData.id_subcategoria ? "p-invalid" : ""}
               disabled={subcategorias.length === 0}
             />
+            {!formData.id_subcategoria && <small className="p-error">Subcategoría es requerida</small>}
           </div>
           <div className="field col-12 md:col-8">
             <label>Nombre del artículo *</label>
@@ -371,6 +295,7 @@ const RegistrarDotacionNueva: React.FC = () => {
               value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               placeholder="Nombre del artículo"
+              className={!formData.nombre ? "p-invalid" : ""}
               required
             />
           </div>
@@ -381,7 +306,7 @@ const RegistrarDotacionNueva: React.FC = () => {
               options={[
                 { label: "Unisex", value: "Unisex" },
                 { label: "Masculino", value: "Masculino" },
-                { label: "Femenino", value: "Femenino" }
+                { label: "Femenino", value: "Femenino" },
               ]}
               onChange={(e) => setFormData({ ...formData, genero: e.value as Genero })}
             />
@@ -394,17 +319,13 @@ const RegistrarDotacionNueva: React.FC = () => {
               placeholder="Descripción del artículo"
             />
           </div>
-          
           <div className="field col-12">
             <div className="flex justify-content-between align-items-center mb-2">
-              <label>Tallas y Stock *</label>
-              <Button 
-                icon="pi pi-plus" 
-                className="p-button-rounded p-button-sm" 
-                onClick={addTalla}
-              />
+              <label>Tallas y Stock *</label> 
+               <label>Nueva</label> 
+               <label>Reutilizable</label> 
+              <Button icon="pi pi-plus" className="p-button-rounded p-button-sm" onClick={addTalla} />
             </div>
-            
             {tallasForm.map((talla, index) => (
               <div key={index} className="grid mb-2">
                 <div className="col-3">
@@ -412,6 +333,7 @@ const RegistrarDotacionNueva: React.FC = () => {
                     value={talla.talla}
                     onChange={(e) => updateTalla(index, "talla", e.target.value)}
                     placeholder="Talla (ej. S, M, 38)"
+                    className={!talla.talla ? "p-invalid" : ""}
                     required
                   />
                 </div>
@@ -422,6 +344,7 @@ const RegistrarDotacionNueva: React.FC = () => {
                     value={talla.stock_nuevo.toString()}
                     onChange={(e) => updateTalla(index, "stock_nuevo", parseInt(e.target.value) || 0)}
                     placeholder="Stock nuevo"
+                    className={talla.stock_nuevo < 0 ? "p-invalid" : ""}
                     required
                   />
                 </div>
@@ -432,13 +355,14 @@ const RegistrarDotacionNueva: React.FC = () => {
                     value={talla.stock_reutilizable.toString()}
                     onChange={(e) => updateTalla(index, "stock_reutilizable", parseInt(e.target.value) || 0)}
                     placeholder="Stock reutilizable"
+                    className={talla.stock_reutilizable < 0 ? "p-invalid" : ""}
                   />
                 </div>
                 <div className="col-3 flex align-items-center">
                   {tallasForm.length > 1 && (
-                    <Button 
-                      icon="pi pi-trash" 
-                      className="p-button-rounded p-button-danger p-button-sm" 
+                    <Button
+                      icon="pi pi-trash"
+                      className="p-button-rounded p-button-danger p-button-sm"
                       onClick={() => removeTalla(index)}
                     />
                   )}
@@ -447,7 +371,6 @@ const RegistrarDotacionNueva: React.FC = () => {
             ))}
           </div>
         </div>
-        
         <div className="flex justify-content-end mt-3">
           <Button
             label="Cancelar"
@@ -460,7 +383,12 @@ const RegistrarDotacionNueva: React.FC = () => {
             icon="pi pi-check"
             onClick={handleSubmit}
             className="p-button-success ml-2"
-            disabled={!formData.nombre.trim() || formData.id_subcategoria <= 0 || tallasForm.some(t => !t.talla.trim())}
+            disabled={
+              !formData.nombre.trim() ||
+              formData.id_subcategoria <= 0 ||
+              tallasForm.some(t => !t.talla.trim()) ||
+              tallasForm.some(t => t.stock_nuevo < 0 || t.stock_reutilizable < 0)
+            }
           />
         </div>
       </div>
@@ -485,7 +413,6 @@ const RegistrarDotacionNueva: React.FC = () => {
             }}
           />
         </div>
-
         <div className="mb-3">
           <span className="p-input-icon-left w-full">
             <i className="pi pi-search" />
@@ -497,9 +424,8 @@ const RegistrarDotacionNueva: React.FC = () => {
             />
           </span>
         </div>
-
         <DataTable
-          value={safeArray(articulos)}
+          value={articulos}
           paginator
           rows={10}
           rowsPerPageOptions={[5, 10, 25, 50]}
@@ -514,15 +440,15 @@ const RegistrarDotacionNueva: React.FC = () => {
           <Column field="subcategoria" header="Subcategoría" sortable filter />
           <Column field="nombre" header="Artículo" sortable filter />
           <Column field="genero" header="Género" sortable />
-          <Column 
-            header="Tallas/Stock" 
+          <Column
+            header="Tallas"
             body={(data: Articulo) => (
               <div className="flex flex-wrap gap-2">
                 {data.tallas?.map((t, i) => (
-                  <Chip 
+                  <Chip
                     key={i}
-                    label={`${t.talla}: N(${t.stock_nuevo}) R(${t.stock_reutilizable || 0})`}
-                    className="mr-2 mb-2"
+                    label={`${t.talla}`}
+                    className="mr-2 mb-2 texto-talla"
                   />
                 ))}
               </div>
@@ -552,7 +478,6 @@ const RegistrarDotacionNueva: React.FC = () => {
           />
         </DataTable>
       </div>
-
       {renderForm("Registrar Nuevo Artículo", registerDialog, resetForm)}
       {renderForm("Editar Artículo", editDialog, resetForm)}
     </div>
