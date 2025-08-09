@@ -175,10 +175,16 @@ const ConsultarStock: React.FC = () => {
     return { producto: p, total };
   });
   const getCantidadBadgeColor = (cantidad: number): string => {
-  if (cantidad === 0) return "danger";      // Rojo fuerte
-  if (cantidad < 10) return "warning";       // Amarillo
-  if (cantidad >= 50) return "success";      // Verde
-  return "info";                             // Azul intermedio
+    if (cantidad === 0) return "danger"; // Rojo fuerte
+    if (cantidad < 10) return "warning"; // Amarillo
+    if (cantidad >= 50) return "success"; // Verde
+    return "info"; // Azul intermedio
+  };
+  const getEstadoReposicion = (cantidad: number): string => {
+  if (cantidad === 0) return "Agotado";
+  if (cantidad < 10) return "Reposición urgente";
+  if (cantidad >= 50) return "Stock suficiente";
+  return "Stock limitado";
 };
 
 
@@ -197,7 +203,7 @@ const ConsultarStock: React.FC = () => {
         </div>
 
         <div className="grid mb-3">
-          <div className="col-12 md:col-4">
+          <div className="col-12 md:col-4 select-filtro">
             <Dropdown
               value={productoFilter}
               options={productos}
@@ -207,7 +213,7 @@ const ConsultarStock: React.FC = () => {
               showClear
             />
           </div>
-          <div className="col-12 md:col-4">
+          <div className="col-12 md:col-4 select-filtro">
             <Dropdown
               value={generoFilter}
               options={generos}
@@ -217,7 +223,7 @@ const ConsultarStock: React.FC = () => {
               showClear
             />
           </div>
-          <div className="col-12 md:col-4">
+          <div className="col-12 md:col-4 select-filtro">
             <Dropdown
               value={tallaFilter}
               options={obtenerTallasFiltradas()}
@@ -241,6 +247,18 @@ const ConsultarStock: React.FC = () => {
           <Column field="tipo" header="Genero" sortable />
           <Column field="talla" header="Talla" sortable />
           <Column field="cantidad" header="Cantidad" sortable />
+          <Column
+            header="Estado"
+            body={(row) => (
+              <span
+                className={`p-tag p-tag-${getCantidadBadgeColor(
+                  Number(row.cantidad || 0)
+                )}`}
+              >
+                {getEstadoReposicion(Number(row.cantidad || 0))}
+              </span>
+            )}
+          />
         </DataTable>
       </div>
       {/* Resumen visual con PrimeReact */}

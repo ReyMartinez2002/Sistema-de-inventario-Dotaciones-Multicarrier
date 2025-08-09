@@ -10,3 +10,6 @@
     align-items: center;
     border-radius: 30rem;
 }
+.mb-3 .select-filtro .p-dropdown-label {
+    border: 0 solid !important;
+}
