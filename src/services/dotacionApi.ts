@@ -181,6 +181,15 @@ async getAll(token: string): Promise<Articulo[]> {
   }
 
   // ==================== MÉTODOS PARA STOCK ====================
+  async getStock(token: string): Promise<StockData[]> {
+  const resp = await this.request<{ success: boolean; data: StockData[] }>(
+    "/dotaciones/stock",
+    "GET",
+    token
+  );
+  return resp.data;
+}
+
   async getStockByArticulo(
     token: string,
     idArticulo: number

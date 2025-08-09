@@ -120,6 +120,12 @@ router.delete(
 
 // ==================== RUTAS PARA STOCK ====================
 router.get(
+  "/stock",
+  verifyToken,
+  dotacionController.getStockGeneral
+);
+
+router.get(
   "/stock/articulo/:idArticulo",
   verifyToken,
   dotacionController.getStockByArticulo

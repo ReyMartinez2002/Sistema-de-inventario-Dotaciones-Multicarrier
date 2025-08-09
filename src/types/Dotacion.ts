@@ -57,10 +57,10 @@ export interface StockTalla {
 
 // Nuevas interfaces agregadas
 export interface StockData {
-  id_talla: number;
+  producto: string;
+  tipo: string;
   talla: string;
-  stock_nuevo: number;
-  stock_reutilizable: number;
+  cantidad: number;
 }
 
 export interface MovimientoStock {

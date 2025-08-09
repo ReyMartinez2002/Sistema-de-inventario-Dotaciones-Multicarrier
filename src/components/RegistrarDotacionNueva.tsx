@@ -369,7 +369,7 @@ const RegistrarDotacionNueva: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="flex justify-content-end mt-3">
+        <div className="flex justify-content-end mt-3 Btn-registrar-dotacion">
           <Button
             label="Cancelar"
             icon="pi pi-times"

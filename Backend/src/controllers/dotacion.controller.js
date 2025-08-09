@@ -1138,6 +1138,33 @@ async function retirarStock(req, res) {
     });
   }
 }
+async function getStockGeneral(req, res) {
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        a.nombre AS producto,
+        a.genero AS tipo,
+        ta.talla,
+        COALESCE(SUM(sd.cantidad), 0) AS cantidad
+      FROM articulos_dotacion a
+      JOIN tallas_articulos ta ON a.id_articulo = ta.id_articulo
+      LEFT JOIN stock_dotacion sd ON ta.id_talla = sd.id_talla
+      WHERE a.eliminado = 0
+      GROUP BY a.nombre, a.genero, ta.talla
+    `);
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error en getStockGeneral:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener el stock general',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+}
+
+
 
 module.exports = {
   getCategorias,
@@ -1160,5 +1187,6 @@ module.exports = {
   removeTalla,
   getStockByArticulo,
   ingresarStock,
-  retirarStock
+  retirarStock,
+  getStockGeneral
 };

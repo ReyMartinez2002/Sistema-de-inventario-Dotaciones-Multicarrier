@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect, useContext } from "react";
 import { Button } from "primereact/button";
 import { Toast } from "primereact/toast";
-import { InputText } from "primereact/inputtext";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -12,25 +12,32 @@ import "../components/styles/ConsultarStock.css";
 import logo from "../assets/Icono-casco.png";
 import DotacionApi from "../services/dotacionApi";
 import { AuthContext } from "../contex/AuthContext";
+import type { StockData } from "../types/Dotacion";
 
-// Si tu StockData es diferente, adáptalo
-interface StockData {
-  producto: string;
-  tipo: string;
-  talla: string;
-  color: string;
-  cantidad: number;
-}
-
+// 👇 Componente principal
 const ConsultarStock: React.FC = () => {
   const toast = useRef<Toast>(null);
   const auth = useContext(AuthContext);
   const token = auth?.token || "";
 
   const [stock, setStock] = useState<StockData[]>([]);
+  const [filteredStock, setFilteredStock] = useState<StockData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [previewDialog, setPreviewDialog] = useState(false);
+
+  const [productoFilter, setProductoFilter] = useState<string | null>(null);
+  const [generoFilter, setGeneroFilter] = useState<string | null>(null);
+  const [tallaFilter, setTallaFilter] = useState<string | null>(null);
+
+  const productos = Array.from(new Set(stock.map((s) => s.producto)));
+  const generos = Array.from(new Set(stock.map((s) => s.tipo)));
+  const tallasEnContexto = productoFilter
+    ? Array.from(
+        new Set(
+          stock.filter((s) => s.producto === productoFilter).map((s) => s.talla)
+        )
+      )
+    : Array.from(new Set(stock.map((s) => s.talla)));
 
   useEffect(() => {
     if (!token) return;
@@ -39,6 +46,7 @@ const ConsultarStock: React.FC = () => {
         setLoading(true);
         const data = await DotacionApi.getStock(token);
         setStock(data);
+        setFilteredStock(data);
       } catch (error: unknown) {
         let message = "No se pudo cargar el stock";
         if (error instanceof Error) message = error.message;
@@ -54,6 +62,16 @@ const ConsultarStock: React.FC = () => {
     fetchStock();
   }, [token]);
 
+  useEffect(() => {
+    let filtered = [...stock];
+    if (productoFilter)
+      filtered = filtered.filter((s) => s.producto === productoFilter);
+    if (generoFilter)
+      filtered = filtered.filter((s) => s.tipo === generoFilter);
+    if (tallaFilter) filtered = filtered.filter((s) => s.talla === tallaFilter);
+    setFilteredStock(filtered);
+  }, [productoFilter, generoFilter, tallaFilter, stock]);
+
   const exportarPDF = () => {
     const doc = new jsPDF();
     const fecha = new Date().toLocaleString("es-CO");
@@ -66,12 +84,11 @@ const ConsultarStock: React.FC = () => {
     doc.setFontSize(10);
     doc.text(`Fecha: ${fecha}`, pageWidth - 10, 30, { align: "right" });
 
-    const columns = ["Producto", "Tipo", "Talla", "Color", "Cantidad"];
-    const rows = stock.map((item) => [
+    const columns = ["Producto", "Genero", "Talla", "Cantidad"];
+    const rows = filteredStock.map((item) => [
       item.producto,
       item.tipo,
       item.talla,
-      item.color,
       item.cantidad.toString(),
     ]);
 
@@ -81,14 +98,20 @@ const ConsultarStock: React.FC = () => {
       body: rows,
       margin: { bottom: 30 },
       didDrawPage: () => {
-        const str = "Página " + (doc as any).internal.getNumberOfPages();
+        const str =
+          "Página " +
+          (
+            doc as unknown as { internal: { getNumberOfPages: () => number } }
+          ).internal.getNumberOfPages();
         doc.setFontSize(10);
         doc.text("Multicarrier de Colombia S.A.S", 10, pageHeight - 10);
         doc.text(
           "Generado por el sistema de dotación EPP",
           pageWidth / 2,
           pageHeight - 10,
-          { align: "center" }
+          {
+            align: "center",
+          }
         );
         doc.text(str, pageWidth - 10, pageHeight - 10, { align: "right" });
       },
@@ -103,7 +126,7 @@ const ConsultarStock: React.FC = () => {
   };
 
   const exportarExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(stock);
+    const ws = XLSX.utils.json_to_sheet(filteredStock);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stock");
     XLSX.writeFile(wb, "reporte_stock.xlsx");
@@ -116,6 +139,18 @@ const ConsultarStock: React.FC = () => {
 
   const abrirVistaPrevia = () => {
     setPreviewDialog(true);
+  };
+  const obtenerTallasFiltradas = () => {
+    const producto = productoFilter?.toLowerCase() || "";
+    const esNumerico = ["zapato", "pantalón"].includes(producto);
+    const esLetra = ["camisa", "chaqueta"].includes(producto);
+
+    const esNumero = (t: string) => /^[0-9]+$/.test(t);
+    const esAlfabeto = (t: string) => /^[a-zA-Z]+$/.test(t);
+
+    if (esNumerico) return tallasEnContexto.filter(esNumero);
+    if (esLetra) return tallasEnContexto.filter(esAlfabeto);
+    return tallasEnContexto;
   };
 
   return (
@@ -132,29 +167,51 @@ const ConsultarStock: React.FC = () => {
           />
         </div>
 
-        <span className="p-input-icon-left mb-3">
-          <i className="pi pi-search" />
-          <InputText
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Buscar en stock..."
-          />
-        </span>
+        <div className="grid mb-3">
+          <div className="col-12 md:col-4">
+            <Dropdown
+              value={productoFilter}
+              options={productos}
+              onChange={(e) => setProductoFilter(e.value)}
+              placeholder="Filtrar por producto"
+              className="w-full"
+              showClear
+            />
+          </div>
+          <div className="col-12 md:col-4">
+            <Dropdown
+              value={generoFilter}
+              options={generos}
+              onChange={(e) => setGeneroFilter(e.value)}
+              placeholder="Filtrar por género"
+              className="w-full"
+              showClear
+            />
+          </div>
+          <div className="col-12 md:col-4">
+            <Dropdown
+              value={tallaFilter}
+              options={obtenerTallasFiltradas()}
+              onChange={(e) => setTallaFilter(e.value)}
+              placeholder="Filtrar por talla"
+              className="w-full"
+              showClear
+            />
+          </div>
+        </div>
 
         <DataTable
-          value={stock}
+          value={filteredStock}
           loading={loading}
           paginator
-          rows={5}
-          globalFilter={globalFilter}
+          rows={9}
           responsiveLayout="scroll"
           emptyMessage="No hay stock disponible."
         >
           <Column field="producto" header="Producto" sortable />
-          <Column field="tipo" header="Tipo" sortable />
+          <Column field="tipo" header="Genero" sortable />
           <Column field="talla" header="Talla" sortable />
-          <Column field="color" header="Color" />
-          <Column field="cantidad" header="Cantidad" />
+          <Column field="cantidad" header="Cantidad" sortable />
         </DataTable>
       </div>
 
@@ -175,15 +232,14 @@ const ConsultarStock: React.FC = () => {
           </small>
         </div>
 
-        <DataTable value={stock} rows={5} responsiveLayout="scroll">
+        <DataTable value={filteredStock} rows={5} responsiveLayout="scroll">
           <Column field="producto" header="Producto" />
-          <Column field="tipo" header="Tipo" />
+          <Column field="tipo" header="Genero" />
           <Column field="talla" header="Talla" />
-          <Column field="color" header="Color" />
           <Column field="cantidad" header="Cantidad" />
         </DataTable>
 
-        <div className="flex justify-content-end gap-2 mt-4">
+        <div className="flex justify-content-end gap-2 mt-4 modal-preview-reporte">
           <Button
             label="Exportar PDF"
             icon="pi pi-file-pdf"

@@ -1,3 +1,6 @@
 .p-datatable .p-column-header-content {
     justify-content: start !important;
 }
+.modal-preview-reporte {
+    margin-bottom: 1.5rem !important;
+}
