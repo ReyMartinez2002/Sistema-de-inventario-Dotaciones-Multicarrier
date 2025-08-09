@@ -4,3 +4,9 @@
 .modal-preview-reporte {
     margin-bottom: 1.5rem !important;
 }
+.resultado-bolitas {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 30rem;
+}

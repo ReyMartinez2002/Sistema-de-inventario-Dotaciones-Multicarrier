@@ -4,6 +4,9 @@ import { Toast } from "primereact/toast";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
+import { Card } from "primereact/card";
+import { Panel } from "primereact/panel";
+import { Divider } from "primereact/divider";
 import { Dropdown } from "primereact/dropdown";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -152,6 +155,32 @@ const ConsultarStock: React.FC = () => {
     if (esLetra) return tallasEnContexto.filter(esAlfabeto);
     return tallasEnContexto;
   };
+  // ===== Resumenes con conversión segura a número y formateo =====
+  const totalUnidades = filteredStock.reduce(
+    (acc, item) => acc + Number(item.cantidad || 0),
+    0
+  );
+
+  const resumenPorGenero = generos.map((g) => {
+    const total = filteredStock
+      .filter((item) => item.tipo === g)
+      .reduce((acc, item) => acc + Number(item.cantidad || 0), 0);
+    return { genero: g, total };
+  });
+
+  const resumenPorProducto = productos.map((p) => {
+    const total = filteredStock
+      .filter((item) => item.producto === p)
+      .reduce((acc, item) => acc + Number(item.cantidad || 0), 0);
+    return { producto: p, total };
+  });
+  const getCantidadBadgeColor = (cantidad: number): string => {
+  if (cantidad === 0) return "danger";      // Rojo fuerte
+  if (cantidad < 10) return "warning";       // Amarillo
+  if (cantidad >= 50) return "success";      // Verde
+  return "info";                             // Azul intermedio
+};
+
 
   return (
     <div className="p-4">
@@ -214,6 +243,81 @@ const ConsultarStock: React.FC = () => {
           <Column field="cantidad" header="Cantidad" sortable />
         </DataTable>
       </div>
+      {/* Resumen visual con PrimeReact */}
+      <Card className="mt-4 shadow-2">
+        <div className="flex justify-content-between align-items-center mb-2">
+          <h5 className="text-900 m-0">
+            <i className="pi pi-chart-bar text-primary mr-2" />
+            Resumen del Stock Filtrado
+          </h5>
+          <span className="text-700">
+            Total visible:{" "}
+            <strong>{totalUnidades.toLocaleString("es-CO")}</strong> unidades
+          </span>
+        </div>
+
+        <Divider />
+
+        <div className="grid">
+          <div className="col-12 md:col-6">
+            <Panel
+              header={
+                <span>
+                  <i className="pi pi-tag mr-2 text-blue-500" />
+                  Por Género
+                </span>
+              }
+            >
+              <ul className="p-0 m-0" style={{ listStyleType: "none" }}>
+                {resumenPorGenero.map((r) => (
+                  <li key={r.genero} className="mb-2">
+                    <i className="pi pi-user mr-2 text-blue-600" />
+                    {r.genero}:{" "}
+                    <strong>{r.total.toLocaleString("es-CO")}</strong> unidades
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+          <div className="col-12 md:col-6">
+            <Panel
+              header={
+                <span>
+                  <i className="pi pi-box mr-2 text-green-500" />
+                  Por Producto
+                </span>
+              }
+            >
+              <ul className="p-0 m-0" style={{ listStyleType: "none" }}>
+                {resumenPorProducto.map((r) => (
+                  <li
+                    key={r.producto}
+                    className="mb-2 flex justify-content-between align-items-center"
+                  >
+                    <span>
+                      <i className="pi pi-tag mr-2 text-green-600" />
+                      {r.producto}
+                    </span>
+                    <span
+                      className={`p-badge p-badge-${getCantidadBadgeColor(
+                        r.total
+                      )} p-badge-rounded resultado-bolitas`}
+                    >
+                      {r.total.toLocaleString("es-CO")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+        </div>
+
+        {totalUnidades === 0 && (
+          <small className="text-600">
+            No hay unidades disponibles para los filtros aplicados.
+          </small>
+        )}
+      </Card>
 
       <Dialog
         header="Previsualización del Reporte"
